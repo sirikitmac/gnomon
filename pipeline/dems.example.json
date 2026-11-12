@@ -1,0 +1,7 @@
+{
+  "_help": "Copy to dems.json. Paths are relative to pipeline/. Put downloaded GeoTIFFs in pipeline/raw/. A site with no entry uses a smooth-sphere horizon (low confidence).",
+  "malapert": [
+    { "path": "raw/Malapert_5mpp_DEM.tif", "label": "PGDA 5 m" },
+    { "path": "raw/LOLA_south_pole_20m.tif", "label": "LOLA 20 m", "maxRangeKm": 150 }
+  ]
+}
