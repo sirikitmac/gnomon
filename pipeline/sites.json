@@ -1,0 +1,59 @@
+{
+  "_note": "Coordinates are approximate starting values. Verify each one against the cited source before the final run.",
+  "sites": [
+    {
+      "id": "mons-mouton",
+      "name": "Mons Mouton",
+      "lat": -84.8, "lonEast": 29.2,
+      "role": "Real mission",
+      "story": "Target of Intuitive Machines IM-2 Athena (Mar 2025). It tipped over in a crater; low sun angles and long shadows were part of the cause.",
+      "source": "NASA Artemis III candidate regions; Intuitive Machines IM-2",
+      "terrain": "skyline-type:plateau"
+    },
+    {
+      "id": "shackleton-ce7",
+      "name": "Shackleton Rim (Chang'e-7)",
+      "lat": -88.8, "lonEast": 123.4,
+      "role": "Power",
+      "story": "China's Chang'e-7 target on the illuminated Shackleton rim. Its 2026 launch was called off, which makes it a real Slip Test case.",
+      "source": "CNSA / CMSA (not NASA)",
+      "terrain": "skyline-type:ridge"
+    },
+    {
+      "id": "malapert",
+      "name": "Malapert Massif",
+      "lat": -85.9, "lonEast": 0.0,
+      "role": "Comms",
+      "story": "A tall massif facing the Earth side of the Moon. Often cited as good for direct-to-Earth communication.",
+      "source": "NASA Artemis III candidate regions",
+      "terrain": "skyline-type:massif"
+    },
+    {
+      "id": "haworth",
+      "name": "Haworth",
+      "lat": -87.3, "lonEast": -4.0,
+      "role": "Science trade-off",
+      "story": "Next to a permanently shadowed crater that may hold water ice. High science value, harder power and comms.",
+      "source": "NASA Artemis III candidate regions",
+      "terrain": "skyline-type:crater-edge"
+    },
+    {
+      "id": "chandrayaan-3",
+      "name": "Chandrayaan-3 (Shiv Shakti)",
+      "lat": -69.373, "lonEast": 32.319,
+      "role": "Contrast",
+      "story": "India's successful 2023 landing. Far south, but not at the pole, so the Sun climbs much higher.",
+      "source": "ISRO (not NASA)",
+      "terrain": "skyline-type:plain"
+    },
+    {
+      "id": "apollo-11",
+      "name": "Apollo 11 (Tranquility Base)",
+      "lat": 0.674, "lonEast": 23.473,
+      "role": "Contrast",
+      "story": "Equatorial site: two weeks of high sun, two weeks of night, and Earth always high in the sky.",
+      "source": "NASA NSSDCA",
+      "terrain": "skyline-type:plain"
+    }
+  ]
+}
