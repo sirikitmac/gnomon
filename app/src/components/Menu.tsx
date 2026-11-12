@@ -7,10 +7,11 @@ const EASE = [0.23, 1, 0.32, 1] as const
 
 const REFS = [
   { title: 'JPL Horizons System', note: 'Sun and Earth positions for each site, hour by hour', url: 'https://ssd.jpl.nasa.gov/horizons/' },
-  { title: 'High-Resolution LOLA Topography for Lunar South Pole Sites (PGDA)', note: '5 m terrain used to build each skyline', url: 'https://pgda.gsfc.nasa.gov/' },
-  { title: 'LRO Lunar Orbiter Laser Altimeter (LOLA)', note: 'Wider polar terrain for distant ridges', url: 'https://lola.gsfc.nasa.gov/' },
+  { title: 'High-Resolution LOLA Topography for Lunar South Pole Sites (PGDA)', note: '5 m terrain used to build each skyline', url: 'https://pgda.gsfc.nasa.gov/products/78' },
+  { title: 'Barker et al., Improved LOLA elevation maps for south pole landing sites', note: 'Error estimates for the 5 m maps and their effect on lighting', url: 'https://ntrs.nasa.gov/citations/20205009660' },
+  { title: 'Mazarico et al. 2011, Illumination conditions of the lunar polar regions using LOLA topography', note: 'The skyline-and-Sun method this app follows', url: 'https://ntrs.nasa.gov/citations/20120010094' },
+  { title: 'Lunar Polar Illumination (PGDA)', note: 'NASA lighting maps used to check our results', url: 'https://pgda.gsfc.nasa.gov/products/69' },
   { title: 'Moon Trek', note: 'South pole illumination and Earth visibility layers, used to check results', url: 'https://trek.nasa.gov/moon/' },
-  { title: 'NASA SVS: Illumination at the Moon’s South Pole', note: 'Light and shadow simulation, used to check results', url: 'https://svs.gsfc.nasa.gov/' },
   { title: 'NASA SVS: CGI Moon Kit', note: 'Moon color and elevation maps for the 3D globe', url: 'https://svs.gsfc.nasa.gov/4720' },
   { title: 'NASA Artemis III candidate landing regions', note: 'Main site list', url: 'https://www.nasa.gov/humans-in-space/artemis/' },
   { title: 'Apollo landing sites (NASA NSSDCA)', note: 'Coordinates for the Apollo contrast site', url: 'https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html' },
