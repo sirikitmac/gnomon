@@ -22,6 +22,23 @@ HERE = Path(__file__).parent
 OUT = HERE.parent / "app" / "public" / "data" / "sites.json"
 
 
+def pixel_size_m(path):
+    """Ground pixel size of a DEM, read from the file (not from its label)."""
+    import rasterio
+    with rasterio.open(path) as ds:
+        return abs(ds.transform.a)
+
+
+def confidence_for(finest_m):
+    """high: a 5 m site DEM; medium: a 20 m-class mosaic; low: anything coarser.
+    Sites with no DEM at all are also 'low' (smooth sphere), labelled by terrain."""
+    if finest_m <= 5.5:
+        return "high"
+    if finest_m <= 20.5:
+        return "medium"
+    return "low"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2026-12-01")
@@ -49,7 +66,7 @@ def main():
         if dems:
             sky = combine(*[skyline_from_dem(HERE / d["path"], s["lat"], s["lonEast"], d.get("maxRangeKm", 0) * 1000 or None) for d in dems])
             terrain = " + ".join(d["label"] for d in dems)
-            confidence = "high" if any("5 m" in d["label"] for d in dems) else "medium"
+            confidence = confidence_for(min(pixel_size_m(HERE / d["path"]) for d in dems))
         else:
             sky = smooth_horizon()
             terrain, confidence = "none (smooth sphere)", "low"
