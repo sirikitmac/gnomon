@@ -67,7 +67,9 @@ def fetch_site(site, start, stop, step, cache_dir: Path):
     cache_dir.mkdir(parents=True, exist_ok=True)
     out = {}
     for name, bid in BODIES.items():
-        f = cache_dir / f"horizons_{site['id']}_{name}_{start}_{stop}_{step}.txt".replace(":", "")
+        # Coordinates are part of the key so editing sites.json never reuses a stale ephemeris.
+        key = f"{site['id']}_{site['lat']:.5f}_{site['lonEast']:.5f}_{name}_{start}_{stop}_{step}"
+        f = cache_dir / f"horizons_{key}.txt".replace(":", "")
         if f.exists():
             text = f.read_text(encoding="utf-8")
         else:
