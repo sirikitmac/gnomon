@@ -1,58 +1,64 @@
 {
-  "_note": "Coordinates are approximate starting values. Verify each one against the cited source before the final run.",
+  "_note": "Coordinates verified 2026-11-13 against the cited sources; see each site's source field. lonEast is degrees east (west negative).",
   "sites": [
     {
       "id": "mons-mouton",
       "name": "Mons Mouton",
-      "lat": -84.8, "lonEast": 29.2,
+      "lat": -84.7906,
+      "lonEast": 29.1957,
       "role": "Real mission",
       "story": "Target of Intuitive Machines IM-2 Athena (Mar 2025). It tipped over in a crater; low sun angles and long shadows were part of the cause.",
-      "source": "NASA Artemis III candidate regions; Intuitive Machines IM-2",
+      "source": "IM-2 Athena touchdown point (Intuitive Machines / LROC); Mons Mouton is a NASA Artemis III candidate region",
       "terrain": "skyline-type:plateau"
     },
     {
       "id": "shackleton-ce7",
-      "name": "Shackleton Rim (Chang'e-7)",
-      "lat": -88.8, "lonEast": 123.4,
+      "name": "Near Shackleton (Chang'e-7)",
+      "lat": -88.8,
+      "lonEast": 123.4,
       "role": "Power",
-      "story": "China's Chang'e-7 target on the illuminated Shackleton rim. Its 2026 launch was called off, which makes it a real Slip Test case.",
-      "source": "CNSA / CMSA (not NASA)",
+      "story": "China's Chang'e-7 target: a sunlit peak on the ridge near Shackleton crater. Its Aug 2026 launch was postponed to 2027, which makes it a real Slip Test case.",
+      "source": "CNSA candidate site, as presented to UN COPUOS (Feb 2025); not NASA, not a final site",
       "terrain": "skyline-type:ridge"
     },
     {
       "id": "malapert",
       "name": "Malapert Massif",
-      "lat": -85.9, "lonEast": 0.0,
+      "lat": -85.964,
+      "lonEast": -2.319,
       "role": "Comms",
       "story": "A tall massif facing the Earth side of the Moon. Often cited as good for direct-to-Earth communication.",
-      "source": "NASA Artemis III candidate regions",
+      "source": "NASA Artemis III candidate region; notional landing point from Kring et al. 2025, JGR Planets, doi:10.1029/2024JE008905",
       "terrain": "skyline-type:massif"
     },
     {
       "id": "haworth",
       "name": "Haworth",
-      "lat": -87.3, "lonEast": -4.0,
+      "lat": -86.764,
+      "lonEast": -22.777,
       "role": "Science trade-off",
-      "story": "Next to a permanently shadowed crater that may hold water ice. High science value, harder power and comms.",
-      "source": "NASA Artemis III candidate regions",
+      "story": "Plateau beside Haworth crater, whose permanently shadowed floor may hold water ice. High science value, harder power and comms.",
+      "source": "NASA Artemis III candidate region 'Haworth' (centre of the PGDA Haworth 5 m DEM tile)",
       "terrain": "skyline-type:crater-edge"
     },
     {
       "id": "chandrayaan-3",
       "name": "Chandrayaan-3 (Shiv Shakti)",
-      "lat": -69.373, "lonEast": 32.319,
+      "lat": -69.3741,
+      "lonEast": 32.32,
       "role": "Contrast",
       "story": "India's successful 2023 landing. Far south, but not at the pole, so the Sun climbs much higher.",
-      "source": "ISRO (not NASA)",
+      "source": "ISRO landing; position from NASA LRO LROC imaging (not a NASA mission)",
       "terrain": "skyline-type:plain"
     },
     {
       "id": "apollo-11",
       "name": "Apollo 11 (Tranquility Base)",
-      "lat": 0.674, "lonEast": 23.473,
+      "lat": 0.67416,
+      "lonEast": 23.47314,
       "role": "Contrast",
       "story": "Equatorial site: two weeks of high sun, two weeks of night, and Earth always high in the sky.",
-      "source": "NASA NSSDCA",
+      "source": "NASA NSSDCA Apollo landing site coordinates (LM)",
       "terrain": "skyline-type:plain"
     }
   ]
