@@ -21,8 +21,8 @@ The frontend reads one JSON file. The mock generator and the real NASA pipeline 
       "role": "Comms",             // Power | Comms | Science trade-off | Real mission | Contrast
       "story": "One-line reason this site is in the app",
       "source": "Who the coordinates come from",
-      "terrain": "PGDA 5 m | LOLA 20 m | synthetic (mock)",
-      "confidence": "high | medium | low | mock",
+      "terrain": "PGDA 5 m (Site23) + LOLA 20 m | LOLA 240 m | none (smooth sphere) | synthetic (mock)",
+      "confidence": "high | medium | low | mock", // from the finest DEM pixel: <=5 m high, <=20 m medium, coarser or none low
       "skyline": [/* 360 numbers: terrain horizon elevation (deg) at azimuth 0..359 */],
       "series": {                  // columnar: index i = meta.start + i * stepHours
         "sunAz":   [/* deg, clockwise from north */],

@@ -17,11 +17,15 @@ function Countdown({ label, setWord, riseWord, color, flags, ds, idx }: { label:
   )
 }
 
-const conf: Record<string, string> = {
-  high: 'High: 5 m terrain',
-  medium: 'Medium: LOLA mosaic only (no 5 m)',
-  low: 'Low: no terrain model',
-  mock: 'Mock: synthetic terrain',
+// Level comes from the pipeline (finest DEM pixel size); the Terrain row names the actual source.
+function confidenceLabel(site: Site): string {
+  switch (site.confidence) {
+    case 'high': return 'High: 5 m site terrain'
+    case 'medium': return 'Medium: 20 m mosaic, no 5 m site terrain'
+    case 'low': return site.terrain.startsWith('none') ? 'Low: no terrain model' : 'Low: coarse terrain only'
+    case 'mock': return 'Mock: synthetic terrain'
+    default: return site.confidence
+  }
 }
 
 export default function SiteBrief({ ds, site, idx }: { ds: Dataset; site: Site; idx: number }) {
@@ -39,7 +43,7 @@ export default function SiteBrief({ ds, site, idx }: { ds: Dataset; site: Site; 
         <dt className="text-ink-3">Terrain</dt>
         <dd>{site.terrain}</dd>
         <dt className="text-ink-3">Confidence</dt>
-        <dd>{conf[site.confidence] ?? site.confidence}</dd>
+        <dd>{confidenceLabel(site)}</dd>
       </dl>
 
       <div className="mt-auto pt-5">
