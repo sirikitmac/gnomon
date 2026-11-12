@@ -37,7 +37,7 @@ export default function Timeline({ ds, site, mission, cursor, onLanding, onCurso
 
   return (
     <div className="flex gap-3">
-      <div className="flex shrink-0 flex-col pt-1 text-[11px] text-ink-500" style={{ gap: gap + 'px' }}>
+      <div className="flex shrink-0 flex-col pt-1 text-[11px] text-ink-3" style={{ gap: gap + 'px' }}>
         {ROWS.map((r) => (
           <div key={r.key} className="flex items-center gap-1.5" style={{ height: rowH }}>
             <span className="h-2 w-2 rounded-full" style={{ background: r.color }} />{r.label}
@@ -56,7 +56,7 @@ export default function Timeline({ ds, site, mission, cursor, onLanding, onCurso
       >
         {ROWS.map((r, ri) => (
           <g key={r.key} transform={`translate(0 ${top + ri * (rowH + gap)})`}>
-            <rect width={n} height={rowH} fill="var(--color-space-800)" rx={2} />
+            <rect width={n} height={rowH} fill="var(--color-surface-2)" rx={2} />
             {rowRuns[r.key].map(([a, b]) => (
               <rect key={a} x={a} width={b - a} height={rowH} fill={r.color} opacity={0.85} />
             ))}
@@ -67,9 +67,9 @@ export default function Timeline({ ds, site, mission, cursor, onLanding, onCurso
           <rect x={mission.startIdx + slipN} y={0} width={durN} height={H} fill="var(--color-risk)" fillOpacity={0.12} stroke="var(--color-risk)" strokeDasharray="6 6" vectorEffect="non-scaling-stroke" />
         )}
         {/* mission box */}
-        <rect x={mission.startIdx} y={0} width={durN} height={H} fill="white" fillOpacity={0.08} stroke="white" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        <rect x={mission.startIdx} y={0} width={durN} height={H} fill="var(--ink)" fillOpacity={0.07} stroke="var(--ink)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
         {/* cursor */}
-        <line x1={cursor} x2={cursor} y1={0} y2={H} stroke="white" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        <line x1={cursor} x2={cursor} y1={0} y2={H} stroke="var(--ink)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
       </svg>
     </div>
   )
@@ -82,7 +82,7 @@ export function TimelineAxis({ ds }: { ds: Dataset }) {
     ticks.push({ i, label: idxToDate(ds, i).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) })
   }
   return (
-    <div className="relative ml-[58px] h-4 text-[11px] text-ink-500 tabular">
+    <div className="relative ml-[58px] h-4 text-[11px] text-ink-3 tabular">
       {ticks.map((t) => (
         <span key={t.i} className="absolute -translate-x-1/2" style={{ left: `${(t.i / n) * 100}%` }}>{t.label}</span>
       ))}
