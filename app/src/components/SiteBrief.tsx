@@ -19,7 +19,7 @@ function Countdown({ label, setWord, riseWord, color, flags, ds, idx }: { label:
 
 const conf: Record<string, string> = {
   high: 'High: 5 m terrain',
-  medium: 'Medium: 20 m terrain',
+  medium: 'Medium: LOLA mosaic only (no 5 m)',
   low: 'Low: no terrain model',
   mock: 'Mock: synthetic terrain',
 }
@@ -36,6 +36,8 @@ export default function SiteBrief({ ds, site, idx }: { ds: Dataset; site: Site; 
         <dd className="tabular">{Math.abs(site.lat).toFixed(2)}°{site.lat < 0 ? 'S' : 'N'}, {Math.abs(site.lonEast).toFixed(2)}°{site.lonEast < 0 ? 'W' : 'E'}</dd>
         <dt className="text-ink-3">Source</dt>
         <dd>{site.source}</dd>
+        <dt className="text-ink-3">Terrain</dt>
+        <dd>{site.terrain}</dd>
         <dt className="text-ink-3">Confidence</dt>
         <dd>{conf[site.confidence] ?? site.confidence}</dd>
       </dl>
