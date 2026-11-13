@@ -29,7 +29,7 @@ export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, 
             disabled={nowIndex === null}
             onClick={() => nowIndex !== null && onNow(nowIndex)}
             title={nowIndex === null ? `Today is outside the data range (${fmtDate(idxToDate(ds, 0))} to ${fmtDate(idxToDate(ds, ds.meta.count - 1))})` : 'Land now'}
-            className="rounded-md px-1.5 py-0.5 font-medium text-earth hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-ink-3 disabled:hover:bg-transparent"
+            className="rounded-md px-1.5 py-0.5 font-medium text-accent transition-colors duration-150 hover:bg-accent/10 disabled:cursor-not-allowed disabled:text-ink-3 disabled:hover:bg-transparent"
           >
             Now
           </button>
@@ -43,14 +43,14 @@ export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, 
             if (!e.target.value) return
             onChange({ ...mission, startIdx: clampIdx(ds, dateToIdx(ds, new Date(e.target.value + ':00Z'))) })
           }}
-          className="rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm tabular text-ink outline-none focus:border-earth [color-scheme:dark]"
+          className="rounded-[8px] bg-surface px-3 py-2 text-[13px] tabular text-ink shadow-control outline-none transition-shadow duration-150 focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_35%,transparent)]"
         />
       </label>
 
       <label className="flex flex-col gap-1.5">
         <span className="flex justify-between text-xs text-ink-3">
           <span>Mission length</span>
-          <span className="tabular text-ink">{days} days</span>
+          <span className="tabular font-medium text-ink">{days} days</span>
         </span>
         <input type="range" min={1} max={28} value={days} onChange={(e) => onChange({ ...mission, durationH: +e.target.value * 24 })} />
       </label>
@@ -59,17 +59,17 @@ export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, 
         role="switch"
         aria-checked={mission.needComms}
         onClick={() => onChange({ ...mission, needComms: !mission.needComms })}
-        className="flex items-center justify-between rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm"
+        className="flex min-h-10 items-center justify-between gap-3 rounded-[8px] bg-surface px-3 py-2 text-[13px] shadow-control"
       >
         <span className="text-left">Needs direct-to-Earth comms</span>
-        <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-150 ${mission.needComms ? 'bg-earth' : 'bg-line-strong'}`}>
-          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform duration-200 ease-out ${mission.needComms ? 'translate-x-4' : 'translate-x-0.5'}`} />
+        <span className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors duration-200 ${mission.needComms ? 'bg-both' : 'bg-line-strong'}`}>
+          <span className={`absolute top-[2px] h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.25),0_0_0_0.5px_rgba(0,0,0,0.04)] transition-transform duration-200 ease-out ${mission.needComms ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
         </span>
       </button>
 
       <div className="flex flex-col gap-1.5">
         <span className="text-xs text-ink-3">Count the Sun as up when</span>
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-surface-2 p-1 text-xs" role="radiogroup" aria-label="Sun rule">
+        <div className="grid grid-cols-2 gap-0.5 rounded-[9px] bg-surface-2 p-[2px] text-xs" role="radiogroup" aria-label="Sun rule">
           {([['centre', 'Its centre clears'], ['firstLight', 'Its top edge clears']] as const).map(([v, label]) => (
             <button
               key={v}
@@ -77,7 +77,7 @@ export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, 
               role="radio"
               aria-checked={sunMode === v}
               onClick={() => onSunMode(v)}
-              className={`rounded-md px-2 py-1.5 transition-colors duration-150 ${sunMode === v ? 'bg-surface font-medium text-ink shadow-sm' : 'text-ink-2 hover:text-ink'}`}
+              className={`rounded-[7px] px-2 py-1.5 transition-[background-color,color,box-shadow] duration-150 ${sunMode === v ? 'bg-surface font-medium text-ink shadow-control' : 'text-ink-2 hover:text-ink'}`}
             >
               {label}
             </button>
@@ -93,7 +93,7 @@ export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, 
         <input type="range" min={0} max={14} value={mission.slipDays} onChange={(e) => onChange({ ...mission, slipDays: +e.target.value })} className="[accent-color:var(--color-risk)]" />
       </label>
 
-      <button onClick={onBest} className="rounded-lg bg-ink px-3 py-2 text-sm font-medium text-bg transition-transform duration-100 ease-out active:scale-[0.97]">
+      <button onClick={onBest} className="min-h-10 rounded-[8px] bg-accent px-3 py-2 text-[13px] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 ease-out hover:brightness-105 active:scale-[0.97]">
         Find the best landing date
       </button>
     </div>
