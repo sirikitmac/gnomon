@@ -108,7 +108,7 @@ function LabelLayout({ specs, els }: { specs: LabelSpec[]; els: React.MutableRef
       if (!el) continue
       const facing = tmp.copy(camera.position).sub(sp.pos).normalize().dot(sp.pos.clone().normalize())
       const dist = camera.position.distanceTo(sp.pos)
-      const maxDist = sp.kind === 'feature' ? 1.0 : 2.6
+      const maxDist = sp.kind === 'feature' ? 0.95 : 3.2
       let o = facing < 0.08 || dist > maxDist ? 0 : Math.min(1, (facing - 0.08) * 6) * Math.min(1, (maxDist - dist) * 4)
       const p = tmp.copy(sp.pos).project(camera)
       const x = (p.x * 0.5 + 0.5) * size.width
@@ -168,18 +168,20 @@ function Scene({ site, sites, idx, recenter, specs, els }: SceneProps) {
   const flight = useRef({ t: 0, from: new THREE.Vector3(0, 0.4, 3.4), fromTarget: new THREE.Vector3() })
 
   const sitePos = useMemo(() => latLonToVec(site.lat, site.lonEast, 1.003), [site])
+  // Camera sits above the site, looking at the Moon's centre, so dragging spins the whole globe.
   const camTarget = useMemo(() => {
     const polar = Math.abs(site.lat) > 60
-    const out = sitePos.clone().normalize().multiplyScalar(polar ? 1.42 : 2.2)
-    // tilt the view off the surface normal so ridges read as relief and the limb stays in frame
-    return out.add(new THREE.Vector3(0, polar ? -0.16 : 0.3, polar ? 0.16 : 0.25))
+    return sitePos.clone().normalize().multiplyScalar(polar ? 1.55 : 2.4)
   }, [sitePos, site.lat])
 
+  const lookTarget = useMemo(() => new THREE.Vector3(0, 0, 0), [])
+  const poleView = useMemo(() => new THREE.Vector3(0.001, -2.6, 0.001), [])
+  const flyTo = useRef(camTarget)
   useEffect(() => {
+    flyTo.current = recenter < 0 ? poleView : camTarget
     flight.current = { t: 0, from: camera.position.clone(), fromTarget: controls.current?.target.clone() ?? new THREE.Vector3() }
-  }, [site.id, camera, recenter])
+  }, [site.id, camera, recenter, camTarget, poleView])
 
-  const lookTarget = useMemo(() => sitePos.clone().multiplyScalar(Math.abs(site.lat) > 60 ? 0.97 : 0.6), [sitePos, site.lat])
 
 
   const s = site.series
@@ -198,7 +200,7 @@ function Scene({ site, sites, idx, recenter, specs, els }: SceneProps) {
       // Fly to the site; the user's orbit controls are paused until the flight lands.
       f.t = Math.min(1, f.t + dt / 1.6)
       const k = f.t < 0.5 ? 4 * f.t ** 3 : 1 - (-2 * f.t + 2) ** 3 / 2 // ease-in-out-cubic
-      camera.position.lerpVectors(f.from, camTarget, k)
+      camera.position.lerpVectors(f.from, flyTo.current, k)
       if (controls.current) {
         const c = controls.current
         c.enabled = false
@@ -207,7 +209,7 @@ function Scene({ site, sites, idx, recenter, specs, els }: SceneProps) {
         if (f.t >= 1) {
           // Land exactly on the target with no momentum left, then hand control back.
           c.target.copy(lookTarget)
-          camera.position.copy(camTarget)
+          camera.position.copy(flyTo.current)
           c.enableDamping = false
           c.update()
           c.enableDamping = true
@@ -255,8 +257,8 @@ function Scene({ site, sites, idx, recenter, specs, els }: SceneProps) {
         dampingFactor={0.08}
         rotateSpeed={0.45}
         zoomSpeed={0.6}
-        minDistance={0.25}
-        maxDistance={5}
+        minDistance={1.08}
+        maxDistance={7}
       />
       <LabelLayout specs={specs} els={els} />
       {sites.filter((x) => x.id !== site.id).map((x) => (
@@ -319,7 +321,15 @@ export default function MoonScene(props: Props) {
         </button>
         <button
           type="button"
-          onClick={() => setRecenter((n) => n + 1)}
+          onClick={() => setRecenter((n) => -Math.abs(n) - 1)}
+          title="Look straight down on the south pole"
+          className="pointer-events-auto rounded-md bg-[#0f1626]/80 px-2.5 py-1 text-xs font-medium text-[#e5e9f1] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
+        >
+          South pole
+        </button>
+        <button
+          type="button"
+          onClick={() => setRecenter((n) => Math.abs(n) + 1)}
           className="pointer-events-auto rounded-md bg-[#0f1626]/80 px-2.5 py-1 text-xs font-medium text-[#e5e9f1] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
         >
           Recenter
