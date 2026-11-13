@@ -76,8 +76,10 @@ interface Props {
   onSelect: (id: string) => void
 }
 
+type ViewKind = 'site' | 'south' | 'north'
+
 interface SceneProps extends Props {
-  recenter: number
+  view: { kind: ViewKind; n: number }
   specs: LabelSpec[]
   els: React.MutableRefObject<Map<string, HTMLDivElement>>
 }
@@ -157,7 +159,7 @@ function useLabelSpecs(site: Site, sites: Site[], showFeatures: boolean, onSelec
 
 const shortName = (x: Site) => x.name.replace(/\s*\(.*\)\s*/, '')
 
-function Scene({ site, sites, idx, recenter, specs, els }: SceneProps) {
+function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
   const tex = useMoonTexture()
   const sunRef = useRef<THREE.DirectionalLight>(null)
   const earthRef = useRef<THREE.Mesh>(null)
@@ -175,12 +177,22 @@ function Scene({ site, sites, idx, recenter, specs, els }: SceneProps) {
   }, [sitePos, site.lat])
 
   const lookTarget = useMemo(() => new THREE.Vector3(0, 0, 0), [])
-  const poleView = useMemo(() => new THREE.Vector3(0.001, -2.6, 0.001), [])
+  const poleViews = useMemo(() => ({
+    south: new THREE.Vector3(0.001, -2.6, 0.001),
+    north: new THREE.Vector3(0.001, 2.6, 0.001),
+  }), [])
   const flyTo = useRef(camTarget)
+  const lastSite = useRef(site.id)
+  const lastViewN = useRef(view.n)
   useEffect(() => {
-    flyTo.current = recenter < 0 ? poleView : camTarget
+    // A newly picked site always wins; otherwise go where the last button asked.
+    const siteChanged = lastSite.current !== site.id
+    const buttonPressed = lastViewN.current !== view.n
+    lastSite.current = site.id
+    lastViewN.current = view.n
+    flyTo.current = siteChanged && !buttonPressed ? camTarget : view.kind === 'site' ? camTarget : poleViews[view.kind]
     flight.current = { t: 0, from: camera.position.clone(), fromTarget: controls.current?.target.clone() ?? new THREE.Vector3() }
-  }, [site.id, camera, recenter, camTarget, poleView])
+  }, [site.id, camera, view, camTarget, poleViews])
 
 
 
@@ -276,14 +288,15 @@ function Scene({ site, sites, idx, recenter, specs, els }: SceneProps) {
 }
 
 export default function MoonScene(props: Props) {
-  const [recenter, setRecenter] = useState(0)
+  const [view, setView] = useState<{ kind: ViewKind; n: number }>({ kind: 'site', n: 0 })
+  const go = (kind: ViewKind) => setView((v) => ({ kind, n: v.n + 1 }))
   const [showFeatures, setShowFeatures] = useState(false)
   const specs = useLabelSpecs(props.site, props.sites, showFeatures, props.onSelect)
   const els = useRef(new Map<string, HTMLDivElement>())
   return (
     <div className="relative h-full w-full">
       <Canvas camera={{ position: [0, 0.4, 3.4], fov: 40, near: 0.01 }} dpr={[1, 2]} gl={{ antialias: true }} className="cursor-grab active:cursor-grabbing">
-        <Scene {...props} recenter={recenter} specs={specs} els={els} />
+        <Scene {...props} view={view} specs={specs} els={els} />
       </Canvas>
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden={false}>
         {specs.map((sp) => (
@@ -306,8 +319,8 @@ export default function MoonScene(props: Props) {
           </div>
         ))}
       </div>
-      <div className="pointer-events-none absolute right-3 top-3 flex items-center gap-2">
-        <span className="hidden rounded-md bg-[#0f1626]/70 px-2 py-1 text-[11px] text-[#a2adc2] backdrop-blur sm:inline">Drag to rotate, scroll to zoom</span>
+      <div className="pointer-events-none absolute right-3 top-3 flex flex-wrap items-center justify-end gap-2">
+        <span className="hidden rounded-md bg-[#0f1626]/70 px-2 py-1 text-[11px] text-[#a2adc2] backdrop-blur xl:inline">Drag to rotate, scroll to zoom</span>
         <button
           type="button"
           aria-pressed={showFeatures}
@@ -319,21 +332,17 @@ export default function MoonScene(props: Props) {
         >
           Crater names
         </button>
-        <button
-          type="button"
-          onClick={() => setRecenter((n) => -Math.abs(n) - 1)}
-          title="Look straight down on the south pole"
-          className="pointer-events-auto rounded-md bg-[#0f1626]/80 px-2.5 py-1 text-xs font-medium text-[#e5e9f1] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
-        >
-          South pole
-        </button>
-        <button
-          type="button"
-          onClick={() => setRecenter((n) => Math.abs(n) + 1)}
-          className="pointer-events-auto rounded-md bg-[#0f1626]/80 px-2.5 py-1 text-xs font-medium text-[#e5e9f1] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
-        >
-          Recenter
-        </button>
+        {([['north', 'North pole', 'Look straight down on the north pole'], ['south', 'South pole', 'Look straight down on the south pole'], ['site', 'Recenter', 'Fly back to the selected site']] as const).map(([kind, label, title]) => (
+          <button
+            key={kind}
+            type="button"
+            title={title}
+            onClick={() => go(kind)}
+            className="pointer-events-auto rounded-md bg-[#0f1626]/80 px-2.5 py-1 text-xs font-medium text-[#e5e9f1] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
+          >
+            {label}
+          </button>
+        ))}
       </div>
     </div>
   )
