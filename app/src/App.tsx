@@ -138,12 +138,12 @@ export default function App() {
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
             <section className="relative h-[380px] overflow-hidden rounded-2xl border border-line bg-[#060a12] lg:h-[440px]">
               <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">Loading Moon…</div>}>
-                <MoonScene site={site} idx={cur} />
+                <MoonScene site={site} sites={ds.sites} idx={cur} onSelect={setSiteId} />
               </Suspense>
               <div className="pointer-events-none absolute bottom-3 left-4 flex gap-4 text-xs text-[#a2adc2]">
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#4e9fff]" />Earth direction</span>
-                <span>Lighting follows the selected time</span>
+                <span className="hidden sm:inline">Crater names: IAU / USGS</span>
               </div>
             </section>
             <SiteBrief ds={ds} site={site} idx={cur} />

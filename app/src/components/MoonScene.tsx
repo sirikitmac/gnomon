@@ -1,8 +1,9 @@
-import { Stars } from '@react-three/drei'
+import { Html, Stars } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { subPoint } from '../lib/engine'
+import { SOUTH_POLE_FEATURES } from '../data/features'
 import type { Site } from '../lib/types'
 
 /** Same lat/lon → xyz mapping three.js uses for equirectangular textures on SphereGeometry. */
@@ -69,10 +70,90 @@ function useMoonTexture() {
 
 interface Props {
   site: Site
+  sites: Site[]
   idx: number
+  onSelect: (id: string) => void
 }
 
-function Scene({ site, idx }: Props) {
+// Only label features big enough to read at this zoom, plus every mountain.
+const LABELLED = SOUTH_POLE_FEATURES.filter((f) => f.diameterKm >= 15 || f.type === 'Mons')
+
+interface LabelSpec {
+  key: string
+  pos: THREE.Vector3
+  kind: 'feature' | 'site' | 'active'
+  text: string
+  priority: number
+  onClick?: () => void
+}
+
+/** Text labels pinned to the surface. Each frame, labels facing away or too far are hidden,
+ * then labels are placed in priority order and any that would overlap an earlier one are hidden. */
+function Labels({ specs }: { specs: LabelSpec[] }) {
+  const refs = useRef<(HTMLDivElement | null)[]>([])
+  const { camera, size } = useThree()
+  const tmp = useMemo(() => new THREE.Vector3(), [])
+  const order = useMemo(() => specs.map((_, i) => i).sort((a, b) => specs[b].priority - specs[a].priority), [specs])
+  useFrame(() => {
+    const placed: [number, number, number, number][] = []
+    for (const i of order) {
+      const sp = specs[i]
+      const el = refs.current[i]
+      if (!el) continue
+      const facing = tmp.copy(camera.position).sub(sp.pos).normalize().dot(sp.pos.clone().normalize())
+      const dist = camera.position.distanceTo(sp.pos)
+      const maxDist = sp.kind === 'feature' ? 1.0 : 2.6
+      let o = facing < 0.08 || dist > maxDist ? 0 : Math.min(1, (facing - 0.08) * 6) * Math.min(1, (maxDist - dist) * 4)
+      let dx = 0
+      let dy = sp.kind === 'feature' ? 0 : -16
+      if (o > 0) {
+        const p = tmp.copy(sp.pos).project(camera)
+        const x = (p.x * 0.5 + 0.5) * size.width
+        const y = (-p.y * 0.5 + 0.5) * size.height
+        const w = sp.text.length * (sp.kind === 'feature' ? 5.6 : 6.8) + (sp.kind === 'feature' ? 6 : 22)
+        const h = sp.kind === 'feature' ? 14 : 22
+        // Sites may sit above, below, right or left of their dot; features only on their spot.
+        const tries: [number, number][] = sp.kind === 'feature'
+          ? [[0, 0]]
+          : [[0, -16], [0, 16], [w / 2 + 8, 0], [-(w / 2 + 8), 0], [-(w / 2 + 8), -20], [w / 2 + 8, -20], [-(w / 2 + 8), 20], [w / 2 + 8, 20], [0, -40], [0, 40]]
+        const hit = (r: number[]) => placed.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1])
+        const ok = tries.find(([ox, oy]) => !hit([x + ox - w / 2, y + oy - h / 2, x + ox + w / 2, y + oy + h / 2]))
+        if (!ok) o = 0
+        else {
+          ;[dx, dy] = ok
+          placed.push([x + dx - w / 2, y + dy - h / 2, x + dx + w / 2, y + dy + h / 2])
+        }
+      }
+      el.style.transform = `translate(${dx}px, ${dy}px)`
+      el.style.opacity = String(o)
+      el.style.pointerEvents = o > 0.3 && sp.onClick ? 'auto' : 'none'
+    }
+  })
+  return (
+    <>
+      {specs.map((sp, i) => (
+        <Html key={sp.key} position={sp.pos} center zIndexRange={[sp.kind === 'feature' ? 10 : 20, 0]}>
+          <div
+            ref={(el) => { refs.current[i] = el }}
+            onClick={sp.onClick}
+            className={
+              sp.kind === 'feature'
+                ? 'pointer-events-none select-none whitespace-nowrap text-[10px] tracking-wide text-[#c9d1e0]/80 [text-shadow:0_1px_2px_#000]'
+                : `select-none whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium shadow transition-colors duration-150 ${
+                    sp.kind === 'active' ? 'bg-[#3ddc97] text-[#04140d]' : 'cursor-pointer bg-[#0f1626]/85 text-[#e5e9f1] ring-1 ring-white/15 hover:bg-[#1d2a44]'
+                  }`
+            }
+            style={{ opacity: 0 }}
+          >
+            {sp.text}
+          </div>
+        </Html>
+      ))}
+    </>
+  )
+}
+
+function Scene({ site, sites, idx, onSelect }: Props) {
   const tex = useMoonTexture()
   const sunRef = useRef<THREE.DirectionalLight>(null)
   const earthRef = useRef<THREE.Mesh>(null)
@@ -83,14 +164,30 @@ function Scene({ site, idx }: Props) {
 
   const sitePos = useMemo(() => latLonToVec(site.lat, site.lonEast, 1.003), [site])
   const camTarget = useMemo(() => {
-    const out = sitePos.clone().normalize().multiplyScalar(2.35)
-    // lift the view slightly off the surface normal so the limb and terminator stay in frame
-    return out.add(new THREE.Vector3(0, site.lat < -60 ? -0.35 : 0.35, 0.25))
+    const polar = Math.abs(site.lat) > 60
+    const out = sitePos.clone().normalize().multiplyScalar(polar ? 1.42 : 2.2)
+    // tilt the view off the surface normal so ridges read as relief and the limb stays in frame
+    return out.add(new THREE.Vector3(0, polar ? -0.16 : 0.3, polar ? 0.16 : 0.25))
   }, [sitePos, site.lat])
 
   useEffect(() => {
     flight.current = { t: 0, from: camera.position.clone() }
   }, [site.id, camera])
+
+  const labelSpecs = useMemo<LabelSpec[]>(() => [
+    ...LABELLED.filter((f) => !sites.some((x) => x.name.replace(/\s*\(.*\)\s*/, '') === f.name)).map((f) => ({
+      key: 'f-' + f.name, pos: latLonToVec(f.lat, f.lon, 1.002), kind: 'feature' as const, text: f.name,
+      priority: (f.type === 'Mons' ? 500 : 0) + f.diameterKm,
+    })),
+    ...sites.map((x) => ({
+      key: 's-' + x.id,
+      pos: latLonToVec(x.lat, x.lonEast, 1.003),
+      kind: x.id === site.id ? ('active' as const) : ('site' as const),
+      text: x.name.replace(/\s*\(.*\)\s*/, ''),
+      priority: x.id === site.id ? 10000 : 5000,
+      onClick: x.id === site.id ? undefined : () => onSelect(x.id),
+    })),
+  ], [sites, site.id, onSelect])
 
   const s = site.series
   const sunDir = useMemo(() => {
@@ -113,7 +210,7 @@ function Scene({ site, idx }: Props) {
       const tt = state.clock.elapsedTime * 0.15
       camera.position.lerp(camTarget.clone().add(new THREE.Vector3(Math.sin(tt) * 0.05, Math.cos(tt) * 0.03, 0)), 0.02)
     }
-    camera.lookAt(sitePos.clone().multiplyScalar(0.6))
+    camera.lookAt(sitePos.clone().multiplyScalar(Math.abs(site.lat) > 60 ? 0.97 : 0.6))
     sunRef.current?.position.lerp(sunDir, 0.15)
     earthRef.current?.position.lerp(earthDir, 0.15)
     if (pulseRef.current) {
@@ -134,7 +231,7 @@ function Scene({ site, idx }: Props) {
         <sphereGeometry args={[1, 128, 128]} />
         <meshStandardMaterial map={tex} roughness={1} metalness={0} bumpMap={tex} bumpScale={0.6} />
       </mesh>
-      <group ref={markerRef} position={sitePos}>
+      <group ref={markerRef} position={sitePos} scale={Math.abs(site.lat) > 60 ? 0.4 : 1}>
         <mesh>
           <circleGeometry args={[0.012, 32]} />
           <meshBasicMaterial color="#3ddc97" />
@@ -144,6 +241,13 @@ function Scene({ site, idx }: Props) {
           <meshBasicMaterial color="#3ddc97" transparent opacity={0.6} side={THREE.DoubleSide} />
         </mesh>
       </group>
+      <Labels specs={labelSpecs} />
+      {sites.filter((x) => x.id !== site.id).map((x) => (
+        <mesh key={x.id} position={latLonToVec(x.lat, x.lonEast, 1.003)}>
+          <sphereGeometry args={[0.0045, 12, 12]} />
+          <meshBasicMaterial color="#e5e9f1" />
+        </mesh>
+      ))}
       <mesh ref={earthRef} position={earthDir}>
         <sphereGeometry args={[0.09, 48, 48]} />
         <meshStandardMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.45} roughness={0.6} />
