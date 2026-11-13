@@ -1,7 +1,8 @@
-import { Html, Stars } from '@react-three/drei'
+import { OrbitControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { subPoint } from '../lib/engine'
 import { SOUTH_POLE_FEATURES } from '../data/features'
 import type { Site } from '../lib/types'
@@ -75,6 +76,12 @@ interface Props {
   onSelect: (id: string) => void
 }
 
+interface SceneProps extends Props {
+  recenter: number
+  specs: LabelSpec[]
+  els: React.MutableRefObject<Map<string, HTMLDivElement>>
+}
+
 // Only label features big enough to read at this zoom, plus every mountain.
 const LABELLED = SOUTH_POLE_FEATURES.filter((f) => f.diameterKm >= 15 || f.type === 'Mons')
 
@@ -87,29 +94,28 @@ interface LabelSpec {
   onClick?: () => void
 }
 
-/** Text labels pinned to the surface. Each frame, labels facing away or too far are hidden,
- * then labels are placed in priority order and any that would overlap an earlier one are hidden. */
-function Labels({ specs }: { specs: LabelSpec[] }) {
-  const refs = useRef<(HTMLDivElement | null)[]>([])
+/** Each frame: hide labels facing away or too far, then place the rest in priority order,
+ * nudging site labels around their dot (or hiding a label) so none overlap. The label
+ * elements live in a plain HTML overlay above the canvas; this only moves them. */
+function LabelLayout({ specs, els }: { specs: LabelSpec[]; els: React.MutableRefObject<Map<string, HTMLDivElement>> }) {
   const { camera, size } = useThree()
   const tmp = useMemo(() => new THREE.Vector3(), [])
-  const order = useMemo(() => specs.map((_, i) => i).sort((a, b) => specs[b].priority - specs[a].priority), [specs])
+  const order = useMemo(() => [...specs].sort((a, b) => b.priority - a.priority), [specs])
   useFrame(() => {
     const placed: [number, number, number, number][] = []
-    for (const i of order) {
-      const sp = specs[i]
-      const el = refs.current[i]
+    for (const sp of order) {
+      const el = els.current.get(sp.key)
       if (!el) continue
       const facing = tmp.copy(camera.position).sub(sp.pos).normalize().dot(sp.pos.clone().normalize())
       const dist = camera.position.distanceTo(sp.pos)
       const maxDist = sp.kind === 'feature' ? 1.0 : 2.6
       let o = facing < 0.08 || dist > maxDist ? 0 : Math.min(1, (facing - 0.08) * 6) * Math.min(1, (maxDist - dist) * 4)
+      const p = tmp.copy(sp.pos).project(camera)
+      const x = (p.x * 0.5 + 0.5) * size.width
+      const y = (-p.y * 0.5 + 0.5) * size.height
       let dx = 0
       let dy = sp.kind === 'feature' ? 0 : -16
       if (o > 0) {
-        const p = tmp.copy(sp.pos).project(camera)
-        const x = (p.x * 0.5 + 0.5) * size.width
-        const y = (-p.y * 0.5 + 0.5) * size.height
         const w = sp.text.length * (sp.kind === 'feature' ? 5.6 : 6.8) + (sp.kind === 'feature' ? 6 : 22)
         const h = sp.kind === 'feature' ? 14 : 22
         // Sites may sit above, below, right or left of their dot; features only on their spot.
@@ -124,43 +130,42 @@ function Labels({ specs }: { specs: LabelSpec[] }) {
           placed.push([x + dx - w / 2, y + dy - h / 2, x + dx + w / 2, y + dy + h / 2])
         }
       }
-      el.style.transform = `translate(${dx}px, ${dy}px)`
+      el.style.transform = `translate(${x + dx}px, ${y + dy}px) translate(-50%, -50%)`
       el.style.opacity = String(o)
       el.style.pointerEvents = o > 0.3 && sp.onClick ? 'auto' : 'none'
     }
   })
-  return (
-    <>
-      {specs.map((sp, i) => (
-        <Html key={sp.key} position={sp.pos} center zIndexRange={[sp.kind === 'feature' ? 10 : 20, 0]}>
-          <div
-            ref={(el) => { refs.current[i] = el }}
-            onClick={sp.onClick}
-            className={
-              sp.kind === 'feature'
-                ? 'pointer-events-none select-none whitespace-nowrap text-[10px] tracking-wide text-[#c9d1e0]/80 [text-shadow:0_1px_2px_#000]'
-                : `select-none whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium shadow transition-colors duration-150 ${
-                    sp.kind === 'active' ? 'bg-[#3ddc97] text-[#04140d]' : 'cursor-pointer bg-[#0f1626]/85 text-[#e5e9f1] ring-1 ring-white/15 hover:bg-[#1d2a44]'
-                  }`
-            }
-            style={{ opacity: 0 }}
-          >
-            {sp.text}
-          </div>
-        </Html>
-      ))}
-    </>
-  )
+  return null
 }
 
-function Scene({ site, sites, idx, onSelect }: Props) {
+function useLabelSpecs(site: Site, sites: Site[], showFeatures: boolean, onSelect: (id: string) => void) {
+  return useMemo<LabelSpec[]>(() => [
+    ...(showFeatures ? LABELLED : []).filter((f) => !sites.some((x) => shortName(x) === f.name)).map((f) => ({
+      key: 'f-' + f.name, pos: latLonToVec(f.lat, f.lon, 1.002), kind: 'feature' as const, text: f.name,
+      priority: (f.type === 'Mons' ? 500 : 0) + f.diameterKm,
+    })),
+    ...sites.map((x) => ({
+      key: 's-' + x.id,
+      pos: latLonToVec(x.lat, x.lonEast, 1.003),
+      kind: x.id === site.id ? ('active' as const) : ('site' as const),
+      text: shortName(x),
+      priority: x.id === site.id ? 10000 : 5000,
+      onClick: x.id === site.id ? undefined : () => onSelect(x.id),
+    })),
+  ], [sites, site.id, onSelect, showFeatures])
+}
+
+const shortName = (x: Site) => x.name.replace(/\s*\(.*\)\s*/, '')
+
+function Scene({ site, sites, idx, recenter, specs, els }: SceneProps) {
   const tex = useMoonTexture()
   const sunRef = useRef<THREE.DirectionalLight>(null)
   const earthRef = useRef<THREE.Mesh>(null)
   const markerRef = useRef<THREE.Group>(null)
   const pulseRef = useRef<THREE.Mesh>(null)
   const { camera } = useThree()
-  const flight = useRef({ t: 0, from: new THREE.Vector3(0, 0.4, 3.4) })
+  const controls = useRef<OrbitControlsImpl>(null)
+  const flight = useRef({ t: 0, from: new THREE.Vector3(0, 0.4, 3.4), fromTarget: new THREE.Vector3() })
 
   const sitePos = useMemo(() => latLonToVec(site.lat, site.lonEast, 1.003), [site])
   const camTarget = useMemo(() => {
@@ -171,23 +176,11 @@ function Scene({ site, sites, idx, onSelect }: Props) {
   }, [sitePos, site.lat])
 
   useEffect(() => {
-    flight.current = { t: 0, from: camera.position.clone() }
-  }, [site.id, camera])
+    flight.current = { t: 0, from: camera.position.clone(), fromTarget: controls.current?.target.clone() ?? new THREE.Vector3() }
+  }, [site.id, camera, recenter])
 
-  const labelSpecs = useMemo<LabelSpec[]>(() => [
-    ...LABELLED.filter((f) => !sites.some((x) => x.name.replace(/\s*\(.*\)\s*/, '') === f.name)).map((f) => ({
-      key: 'f-' + f.name, pos: latLonToVec(f.lat, f.lon, 1.002), kind: 'feature' as const, text: f.name,
-      priority: (f.type === 'Mons' ? 500 : 0) + f.diameterKm,
-    })),
-    ...sites.map((x) => ({
-      key: 's-' + x.id,
-      pos: latLonToVec(x.lat, x.lonEast, 1.003),
-      kind: x.id === site.id ? ('active' as const) : ('site' as const),
-      text: x.name.replace(/\s*\(.*\)\s*/, ''),
-      priority: x.id === site.id ? 10000 : 5000,
-      onClick: x.id === site.id ? undefined : () => onSelect(x.id),
-    })),
-  ], [sites, site.id, onSelect])
+  const lookTarget = useMemo(() => sitePos.clone().multiplyScalar(Math.abs(site.lat) > 60 ? 0.97 : 0.6), [sitePos, site.lat])
+
 
   const s = site.series
   const sunDir = useMemo(() => {
@@ -202,15 +195,28 @@ function Scene({ site, sites, idx, onSelect }: Props) {
   useFrame((state, dt) => {
     const f = flight.current
     if (f.t < 1) {
+      // Fly to the site; the user's orbit controls are paused until the flight lands.
       f.t = Math.min(1, f.t + dt / 1.6)
       const k = f.t < 0.5 ? 4 * f.t ** 3 : 1 - (-2 * f.t + 2) ** 3 / 2 // ease-in-out-cubic
       camera.position.lerpVectors(f.from, camTarget, k)
-    } else {
-      // gentle idle drift around the target
-      const tt = state.clock.elapsedTime * 0.15
-      camera.position.lerp(camTarget.clone().add(new THREE.Vector3(Math.sin(tt) * 0.05, Math.cos(tt) * 0.03, 0)), 0.02)
+      if (controls.current) {
+        const c = controls.current
+        c.enabled = false
+        c.target.lerpVectors(f.fromTarget, lookTarget, k)
+        c.update() // lets leftover drag momentum decay while we fly
+        if (f.t >= 1) {
+          // Land exactly on the target with no momentum left, then hand control back.
+          c.target.copy(lookTarget)
+          camera.position.copy(camTarget)
+          c.enableDamping = false
+          c.update()
+          c.enableDamping = true
+          c.enabled = true
+        }
+      } else {
+        camera.lookAt(lookTarget)
+      }
     }
-    camera.lookAt(sitePos.clone().multiplyScalar(Math.abs(site.lat) > 60 ? 0.97 : 0.6))
     sunRef.current?.position.lerp(sunDir, 0.15)
     earthRef.current?.position.lerp(earthDir, 0.15)
     if (pulseRef.current) {
@@ -241,7 +247,18 @@ function Scene({ site, sites, idx, onSelect }: Props) {
           <meshBasicMaterial color="#3ddc97" transparent opacity={0.6} side={THREE.DoubleSide} />
         </mesh>
       </group>
-      <Labels specs={labelSpecs} />
+      <OrbitControls
+        ref={controls}
+        makeDefault
+        enablePan={false}
+        enableDamping
+        dampingFactor={0.08}
+        rotateSpeed={0.45}
+        zoomSpeed={0.6}
+        minDistance={0.25}
+        maxDistance={5}
+      />
+      <LabelLayout specs={specs} els={els} />
       {sites.filter((x) => x.id !== site.id).map((x) => (
         <mesh key={x.id} position={latLonToVec(x.lat, x.lonEast, 1.003)}>
           <sphereGeometry args={[0.0045, 12, 12]} />
@@ -257,9 +274,57 @@ function Scene({ site, sites, idx, onSelect }: Props) {
 }
 
 export default function MoonScene(props: Props) {
+  const [recenter, setRecenter] = useState(0)
+  const [showFeatures, setShowFeatures] = useState(false)
+  const specs = useLabelSpecs(props.site, props.sites, showFeatures, props.onSelect)
+  const els = useRef(new Map<string, HTMLDivElement>())
   return (
-    <Canvas camera={{ position: [0, 0.4, 3.4], fov: 40 }} dpr={[1, 2]} gl={{ antialias: true }}>
-      <Scene {...props} />
-    </Canvas>
+    <div className="relative h-full w-full">
+      <Canvas camera={{ position: [0, 0.4, 3.4], fov: 40, near: 0.01 }} dpr={[1, 2]} gl={{ antialias: true }} className="cursor-grab active:cursor-grabbing">
+        <Scene {...props} recenter={recenter} specs={specs} els={els} />
+      </Canvas>
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden={false}>
+        {specs.map((sp) => (
+          <div
+            key={sp.key}
+            ref={(el) => { if (el) els.current.set(sp.key, el); else els.current.delete(sp.key) }}
+            onClick={sp.onClick}
+            role={sp.onClick ? 'button' : undefined}
+            className={
+              'absolute left-0 top-0 ' +
+              (sp.kind === 'feature'
+                ? 'select-none whitespace-nowrap text-[10px] tracking-wide text-[#c9d1e0]/80 [text-shadow:0_1px_2px_#000]'
+                : `select-none whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium shadow transition-colors duration-150 ${
+                    sp.kind === 'active' ? 'z-20 bg-[#3ddc97] text-[#04140d]' : 'z-10 cursor-pointer bg-[#0f1626]/85 text-[#e5e9f1] ring-1 ring-white/15 hover:bg-[#1d2a44]'
+                  }`)
+            }
+            style={{ opacity: 0 }}
+          >
+            {sp.text}
+          </div>
+        ))}
+      </div>
+      <div className="pointer-events-none absolute right-3 top-3 flex items-center gap-2">
+        <span className="hidden rounded-md bg-[#0f1626]/70 px-2 py-1 text-[11px] text-[#a2adc2] backdrop-blur sm:inline">Drag to rotate, scroll to zoom</span>
+        <button
+          type="button"
+          aria-pressed={showFeatures}
+          onClick={() => setShowFeatures((v) => !v)}
+          title="Official crater and mountain names from the IAU Gazetteer (USGS)"
+          className={`pointer-events-auto rounded-md px-2.5 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
+            showFeatures ? 'bg-[#e5e9f1] text-[#0f1626] ring-transparent' : 'bg-[#0f1626]/80 text-[#e5e9f1] ring-white/15 hover:bg-[#1d2a44]'
+          }`}
+        >
+          Crater names
+        </button>
+        <button
+          type="button"
+          onClick={() => setRecenter((n) => n + 1)}
+          className="pointer-events-auto rounded-md bg-[#0f1626]/80 px-2.5 py-1 text-xs font-medium text-[#e5e9f1] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
+        >
+          Recenter
+        </button>
+      </div>
+    </div>
   )
 }

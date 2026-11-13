@@ -143,7 +143,7 @@ export default function App() {
               <div className="pointer-events-none absolute bottom-3 left-4 flex gap-4 text-xs text-[#a2adc2]">
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#4e9fff]" />Earth direction</span>
-                <span className="hidden sm:inline">Crater names: IAU / USGS</span>
+
               </div>
             </section>
             <SiteBrief ds={ds} site={site} idx={cur} />
