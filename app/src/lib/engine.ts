@@ -49,6 +49,48 @@ export function analyze(ds: Dataset, site: Site, startIdx: number, mission: Miss
   }
 }
 
+export interface Score {
+  coveragePct: number
+  longestBlackoutH: number
+  bothPct: number
+  verdict: Verdict
+  /** False when the mission runs past the end of the data, so the numbers cover only part of it. */
+  complete: boolean
+}
+
+/**
+ * The verdict numbers of `analyze` without the extras (no window search), for scanning
+ * hundreds of landing dates at once. Same coverage and blackout rules as `analyze`.
+ */
+export function score(ds: Dataset, site: Site, startIdx: number, durationH: number, needComms: boolean): Score {
+  const step = ds.meta.stepHours
+  const n = Math.max(1, Math.round(durationH / step))
+  const s0 = clampIdx(ds, startIdx)
+  const s1 = Math.min(ds.meta.count, s0 + n)
+  const { sunVis, earthVis } = site.series
+  let req = 0, both = 0, gap = 0, longest = 0
+  for (let i = s0; i < s1; i++) {
+    const b = sunVis[i] & earthVis[i]
+    const r = needComms ? b : sunVis[i]
+    both += b
+    req += r
+    gap = r ? 0 : gap + step
+    if (gap > longest) longest = gap
+  }
+  const len = Math.max(1, s1 - s0)
+  const coveragePct = (100 * req) / len
+  return { coveragePct, longestBlackoutH: longest, bothPct: (100 * both) / len, verdict: verdictFor(coveragePct, longest), complete: s0 + n <= ds.meta.count }
+}
+
+export const VERDICT_RANK: Record<Verdict, number> = { GO: 0, RISKY: 1, 'NO-GO': 2 }
+
+/** Samples per day at this dataset's step. */
+export const perDay = (ds: Dataset) => 24 / ds.meta.stepHours
+
+export function fmtDay(d: Date): string {
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
 export function verdictFor(coveragePct: number, longestBlackoutH: number): Verdict {
   if (coveragePct >= 75 && longestBlackoutH <= 24) return 'GO'
   if (coveragePct >= 45 && longestBlackoutH <= 96) return 'RISKY'
