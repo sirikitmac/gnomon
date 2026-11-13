@@ -35,7 +35,17 @@ export interface Mission {
   slipDays: number
 }
 
-export type Verdict = 'GO' | 'RISKY' | 'NO-GO'
+/** Everything that defines a plan: what presets set and what the share link encodes. */
+export interface PlanState {
+  siteId: string
+  startIdx: number
+  durationH: number
+  needComms: boolean
+  slipDays: number
+  sunMode: SunMode
+}
+
+export type Verdict ='GO' | 'RISKY' | 'NO-GO'
 
 export interface Analysis {
   startIdx: number

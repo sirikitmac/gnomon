@@ -11,10 +11,13 @@ import Timeline from './components/Timeline'
 import CompareTable from './components/CompareTable'
 import LaunchCalendar from './components/LaunchCalendar'
 import PlanPanel from './components/PlanPanel'
+import Popover, { MenuItem } from './components/Popover'
+import ScenarioBanner from './components/ScenarioBanner'
 import { analyze, bestLanding, clampIdx, fmtHours, nowIdx, withSunMode } from './lib/engine'
 import { scrollToId } from './lib/dom'
+import { checkPreset, PRESETS, resolvePreset, type Preset } from './lib/presets'
 import { useTheme } from './lib/theme'
-import type { Dataset, Mission, SunMode } from './lib/types'
+import type { Dataset, Mission, PlanState, SunMode } from './lib/types'
 
 const MoonScene = lazy(() => import('./components/MoonScene'))
 
@@ -42,6 +45,7 @@ export default function App() {
   const [cursor, setCursor] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [planOn, setPlanOn] = useState(false)
+  const [scenario, setScenario] = useState<Preset | null>(null)
   const [theme, setTheme] = useTheme()
 
   useEffect(() => {
@@ -63,6 +67,19 @@ export default function App() {
       .catch((e) => setError(String(e)))
   }, [])
 
+  // Dev guard: the preset texts describe what the data shows; warn if the data ever disagrees.
+  useEffect(() => {
+    if (!import.meta.env.DEV || !rawDs) return
+    for (const p of PRESETS) for (const msg of checkPreset(withSunMode(rawDs, p.sunMode), p)) console.warn('[presets]', msg)
+  }, [rawDs])
+
+  const applyPlan = (st: PlanState) => {
+    setSiteId(st.siteId)
+    setSunMode(st.sunMode)
+    setMission({ startIdx: st.startIdx, durationH: st.durationH, needComms: st.needComms, slipDays: st.slipDays })
+    setCursor(st.startIdx)
+  }
+
   const site = useMemo(() => ds?.sites.find((s) => s.id === siteId) ?? ds?.sites[0], [ds, siteId])
   const a = useMemo(() => (ds && site ? analyze(ds, site, mission.startIdx, mission) : null), [ds, site, mission])
   const slipped = useMemo(
@@ -82,7 +99,30 @@ export default function App() {
           <span className="font-display text-[17px] font-semibold tracking-tight">Rocky</span>
           <span className="hidden truncate text-[13px] text-ink-3 sm:inline">Lunar landing site navigator</span>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+          <Popover
+            label="Scenarios"
+            title="One-click demo scenarios"
+            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden><path d="M5 3.5v11l9-5.5-9-5.5Z" /></svg>}
+          >
+            {(close) => (
+              <>
+                <div className="px-3 pb-1 pt-1.5 text-xs text-ink-3">Scenarios set the site, dates and mission for you</div>
+                {PRESETS.map((p) => {
+                  const st = ds ? resolvePreset(ds, p) : null
+                  return (
+                    <MenuItem
+                      key={p.id}
+                      title={p.title}
+                      detail={st ? p.blurb : 'Date not in the loaded data'}
+                      disabled={!st}
+                      onSelect={() => { if (!st) return; applyPlan(st); setScenario(p); close() }}
+                    />
+                  )
+                })}
+              </>
+            )}
+          </Popover>
           {ds?.meta.mock && (
             <button onClick={() => setMenuOpen(true)} className="rounded-full border border-risk/40 bg-risk/10 px-3 py-1 text-xs text-risk-ink" title={ds.meta.notes}>
               Mock data
@@ -138,6 +178,7 @@ export default function App() {
         </aside>
 
         <main className="flex min-w-0 flex-col gap-5">
+          <ScenarioBanner scenario={scenario} onClose={() => setScenario(null)} />
           <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} />
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
