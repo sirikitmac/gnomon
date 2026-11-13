@@ -87,6 +87,11 @@ export const VERDICT_RANK: Record<Verdict, number> = { GO: 0, RISKY: 1, 'NO-GO':
 /** Samples per day at this dataset's step. */
 export const perDay = (ds: Dataset) => 24 / ds.meta.stepHours
 
+/** Like fmtDate but with the year, for lists that span the whole data range. */
+export function fmtDateYear(d: Date): string {
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }) + ' UTC'
+}
+
 export function fmtDay(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }

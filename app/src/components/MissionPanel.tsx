@@ -5,11 +5,12 @@ function toLocalInput(d: Date) {
   return d.toISOString().slice(0, 16)
 }
 
-export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, onNow, sunMode, onSunMode }: {
+export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, nowIndex, onNow, sunMode, onSunMode }: {
   ds: Dataset
   mission: Mission
   onChange: (m: Mission) => void
   onBest: () => void
+  onPlan: () => void
   nowIndex: number | null
   onNow: (idx: number) => void
   sunMode: SunMode
@@ -95,6 +96,9 @@ export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, 
 
       <button onClick={onBest} className="min-h-10 rounded-[8px] bg-accent px-3 py-2 text-[13px] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 ease-out hover:brightness-105 active:scale-[0.97]">
         Find the best landing date
+      </button>
+      <button onClick={onPlan} className="-mt-2 min-h-10 rounded-[8px] bg-surface px-3 py-2 text-[13px] font-medium text-accent shadow-control transition-[transform,background-color] duration-100 ease-out hover:bg-accent/5 active:scale-[0.97]">
+        Plan it for me: best site and date
       </button>
     </div>
   )

@@ -10,7 +10,9 @@ import SummaryStrip from './components/SummaryStrip'
 import Timeline from './components/Timeline'
 import CompareTable from './components/CompareTable'
 import LaunchCalendar from './components/LaunchCalendar'
+import PlanPanel from './components/PlanPanel'
 import { analyze, bestLanding, clampIdx, fmtHours, nowIdx, withSunMode } from './lib/engine'
+import { scrollToId } from './lib/dom'
 import { useTheme } from './lib/theme'
 import type { Dataset, Mission, SunMode } from './lib/types'
 
@@ -39,6 +41,7 @@ export default function App() {
   const [mission, setMission] = useState<Mission>({ startIdx: 0, durationH: 24 * 10, needComms: true, slipDays: 0 })
   const [cursor, setCursor] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [planOn, setPlanOn] = useState(false)
   const [theme, setTheme] = useTheme()
 
   useEffect(() => {
@@ -125,6 +128,7 @@ export default function App() {
               mission={mission}
               onChange={(m) => { setMission(m); if (m.startIdx !== mission.startIdx) setCursor(m.startIdx) }}
               onBest={() => setLanding(bestLanding(ds, site, mission).idx)}
+              onPlan={() => { setPlanOn(true); scrollToId('planner') }}
               nowIndex={nowIdx(ds)}
               onNow={(i) => setLanding(i)}
               sunMode={sunMode}
@@ -152,6 +156,18 @@ export default function App() {
 
           <Panel title="All sites" hint="Same landing date and mission length for every site. Click a row to open that site.">
             <CompareTable ds={ds} mission={mission} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
+          </Panel>
+
+          <Panel id="planner" title="Plan it for me" hint="Best site and landing date for your mission settings">
+            <PlanPanel
+              ds={ds}
+              mission={mission}
+              siteId={site.id}
+              todayIdx={nowIdx(ds)}
+              active={planOn}
+              onActivate={() => setPlanOn(true)}
+              onUse={(id, idx) => { setSiteId(id); setLanding(idx) }}
+            />
           </Panel>
 
           <Panel title="Timeline" hint="Drag to move the landing. Solid box: mission. Dashed box: delayed landing.">
