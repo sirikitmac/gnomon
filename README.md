@@ -65,6 +65,15 @@ Site coordinates in `pipeline/sites.json` are approximate starting values: verif
 - Moon Trek, PGDA Lunar Polar Illumination, NASA SVS south pole illumination 2025–2028 (validation)
 - NASA Artemis III candidate regions; Apollo coordinates (NSSDCA). Non-NASA sites (Chang'e-7, Chandrayaan-3) are labelled with their real source.
 
+## Planning tools
+
+- **Launch calendar**: every day Nov 2026 – Dec 2028 coloured by the verdict of a mission landing at 00:00 UTC that day (current settings). Click a day to land then.
+- **Plan it for me**: searches all sites × landing times (6 h steps, from today) and lists the top 5 (verdict, then coverage, then shortest blackout; same-site results ≥ 3 days apart).
+- **Scenarios**: one-click demo presets with an explanation. How each date was chosen is documented in `app/src/lib/presets.ts`. The Athena preset is a similar low-Sun period in our data range, **not** the real March 2025 landing (our data starts Nov 2026).
+- **Share**: the plan lives in the URL (`?site=…&t=…&days=…&comms=…&slip=…&sun=…`); Copy link, a print-ready one-page report (Print / Save as PDF) and a CSV of the all-sites table.
+- **Sky view**: first-person 360° panorama with the terrain skyline, the Sun and Earth, play/pause through the mission. Vertical scale is exaggerated (the factor is shown).
+- **Learn**: a 7-step plain-language tour of the interface and the ideas behind it.
+
 ## How the verdict works
 
 For the mission window (landing → landing + length):
