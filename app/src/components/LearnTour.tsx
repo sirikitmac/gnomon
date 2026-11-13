@@ -21,7 +21,7 @@ function scrollToTarget(id: string) {
  * Keyboard: ←/→ (or Enter on Next) to move, Esc to exit; focus stays in the card and returns
  * to the Learn button when the tour ends.
  */
-export default function LearnTour({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function LearnTour({ open, onClose, onNavigate }: { open: boolean; onClose: () => void; onNavigate?: (target: string) => void }) {
   const [step, setStep] = useState(0)
   const [rect, setRect] = useState<Rect | null>(null)
   const card = useRef<HTMLDivElement>(null)
@@ -34,9 +34,13 @@ export default function LearnTour({ open, onClose }: { open: boolean; onClose: (
 
   useEffect(() => {
     if (!open) return
-    scrollToTarget(s.target)
+    // The target may live on another page: switch to it, then scroll once it has rendered.
+    onNavigate?.(s.target)
+    let r2 = 0
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => scrollToTarget(s.target)) })
     card.current?.focus()
-  }, [open, s.target])
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
+  }, [open, s.target, onNavigate])
 
   // Follow the target while the page scrolls or resizes.
   useEffect(() => {

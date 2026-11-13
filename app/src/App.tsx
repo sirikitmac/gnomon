@@ -16,9 +16,11 @@ import Popover, { MenuItem } from './components/Popover'
 import ScenarioBanner from './components/ScenarioBanner'
 import SkyView from './components/SkyView'
 import Toast from './components/Toast'
+import ViewTabs from './components/ViewTabs'
+import { TARGET_VIEW, viewFromHash, type View } from './lib/views'
 import { compareSites } from './lib/compare'
 import { analyze, bestLanding, clampIdx, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
-import { copyText, scrollToId } from './lib/dom'
+import { copyText } from './lib/dom'
 import { checkPreset, PRESETS, resolvePreset, type Preset } from './lib/presets'
 import { buildCsv, buildReportHtml, downloadText, openReport } from './lib/report'
 import { decodePlan, encodePlan } from './lib/urlState'
@@ -41,6 +43,15 @@ function Panel({ id, title, hint, children, className = '' }: { id?: string; tit
   )
 }
 
+function PageHead({ title, text }: { title: string; text: string }) {
+  return (
+    <header className="px-1 pt-1">
+      <h1 className="font-display text-[22px] font-semibold tracking-tight">{title}</h1>
+      <p className="mt-1 max-w-[70ch] text-sm text-ink-2">{text}</p>
+    </header>
+  )
+}
+
 const idxDay = (ds: Dataset, i: number) => idxToDate(ds, i).toISOString().slice(0, 10)
 
 export default function App() {
@@ -57,6 +68,22 @@ export default function App() {
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [urlReady, setUrlReady] = useState(false)
   const [learnOn, setLearnOn] = useState(false)
+  const [view, setViewState] = useState<View>(() => viewFromHash(location.hash))
+  // Pages live in the URL hash so Back/Forward work and a shared link can open a page.
+  const setView = useCallback((v: View) => {
+    setViewState(v)
+    if (viewFromHash(location.hash) !== v) location.hash = v === 'mission' ? '' : v
+    window.scrollTo({ top: 0 })
+  }, [])
+  useEffect(() => {
+    const onHash = () => setViewState(viewFromHash(location.hash))
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+  const navigateToTarget = useCallback((target: string) => {
+    const v = TARGET_VIEW[target]
+    if (v) setViewState((cur) => { if (cur !== v) { history.replaceState(history.state, '', `${location.pathname}${location.search}${v === 'mission' ? '' : '#' + v}`) } return v })
+  }, [])
   const [theme, setTheme] = useTheme()
   const notify = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }))
   const clearToast = useCallback(() => setToast(null), [])
@@ -128,9 +155,10 @@ export default function App() {
         </button>
         <div className="flex min-w-0 items-baseline gap-3">
           <span className="font-display text-[17px] font-semibold tracking-tight">Rocky</span>
-          <span className="hidden truncate text-[13px] text-ink-3 sm:inline">Lunar landing site navigator</span>
+          <span className="hidden truncate text-[13px] text-ink-3 2xl:inline">Lunar landing site navigator</span>
         </div>
-        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <ViewTabs value={view} onChange={setView} className="mx-auto hidden w-[440px] lg:block" />
+        <div className="ml-auto flex items-center gap-1 sm:gap-2 lg:ml-0">
           <button
             id="learn-button"
             onClick={() => setLearnOn((v) => !v)}
@@ -229,6 +257,9 @@ export default function App() {
           </button>
         </div>
       </div>
+      <div className="border-t border-line px-4 py-2 lg:hidden">
+        <ViewTabs value={view} onChange={setView} />
+      </div>
     </header>
   )
 
@@ -256,7 +287,7 @@ export default function App() {
               mission={mission}
               onChange={(m) => { setMission(m); if (m.startIdx !== mission.startIdx) setCursor(m.startIdx) }}
               onBest={() => setLanding(bestLanding(ds, site, mission).idx)}
-              onPlan={() => { setPlanOn(true); scrollToId('planner') }}
+              onPlan={() => { setPlanOn(true); setView('compare') }}
               nowIndex={nowIdx(ds)}
               onNow={(i) => setLanding(i)}
               sunMode={sunMode}
@@ -267,65 +298,80 @@ export default function App() {
 
         <main className="flex min-w-0 flex-col gap-5">
           <ScenarioBanner scenario={scenario} onClose={() => setScenario(null)} />
-          <div id="verdict" className="scroll-mt-20">
-            <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} />
-          </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <section id="moon-view" className="relative h-[380px] overflow-hidden rounded-[14px] bg-[#05070c] shadow-card lg:h-[440px]">
-              <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">Loading Moon…</div>}>
-                <MoonScene site={site} sites={ds.sites} idx={cur} onSelect={setSiteId} />
-              </Suspense>
-              <div className="pointer-events-none absolute bottom-3 left-4 flex gap-4 text-xs text-[#a2adc2]">
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#4e9fff]" />Earth direction</span>
-
+          {view === 'mission' && (
+            <>
+              <div id="verdict" className="scroll-mt-20">
+                <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} />
               </div>
-            </section>
-            <SiteBrief ds={ds} site={site} idx={cur} />
-          </div>
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+                <section id="moon-view" className="relative h-[420px] overflow-hidden rounded-[14px] bg-[#05070c] shadow-card lg:h-[520px]">
+                  <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">Loading Moon…</div>}>
+                    <MoonScene site={site} sites={ds.sites} idx={cur} onSelect={setSiteId} />
+                  </Suspense>
+                  <div className="pointer-events-none absolute bottom-3 left-4 flex gap-4 text-xs text-[#a2adc2]">
+                    <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
+                    <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#4e9fff]" />Earth direction</span>
+                  </div>
+                </section>
+                <SiteBrief ds={ds} site={site} idx={cur} />
+              </div>
+              <Panel id="timeline" title="Timeline" hint="Drag to move the landing. Solid box: mission. Dashed box: delayed landing.">
+                <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />
+                <label className="mt-4 flex items-center gap-3 text-sm text-ink-2">
+                  <span className="shrink-0">Mission time</span>
+                  <input type="range" className="w-full" min={a.startIdx} max={a.endIdx - 1} value={cur} onChange={(e) => setCursor(+e.target.value)} />
+                  <span className="w-24 shrink-0 text-right tabular">T+{fmtHours((cur - a.startIdx) * ds.meta.stepHours)}</span>
+                </label>
+              </Panel>
+            </>
+          )}
 
-          <Panel id="all-sites" title="All sites" hint="Same landing date and mission length for every site. Click a row to open that site.">
-            <CompareTable ds={ds} mission={mission} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
-          </Panel>
+          {view === 'compare' && (
+            <>
+              <PageHead title="Compare sites" text="Every site with the same landing date and mission settings. Click a row to make it your site." />
+              <Panel id="all-sites" title="All sites">
+                <CompareTable ds={ds} mission={mission} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
+              </Panel>
+              <Panel id="planner" title="Plan it for me" hint="Best site and landing date for your mission settings">
+                <PlanPanel
+                  ds={ds}
+                  mission={mission}
+                  siteId={site.id}
+                  todayIdx={nowIdx(ds)}
+                  active={planOn}
+                  onActivate={() => setPlanOn(true)}
+                  onUse={(id, idx) => { setSiteId(id); setLanding(idx); setView('mission') }}
+                />
+              </Panel>
+            </>
+          )}
 
-          <Panel id="planner" title="Plan it for me" hint="Best site and landing date for your mission settings">
-            <PlanPanel
-              ds={ds}
-              mission={mission}
-              siteId={site.id}
-              todayIdx={nowIdx(ds)}
-              active={planOn}
-              onActivate={() => setPlanOn(true)}
-              onUse={(id, idx) => { setSiteId(id); setLanding(idx) }}
-            />
-          </Panel>
+          {view === 'calendar' && (
+            <>
+              <PageHead title={`Launch calendar: ${site.name}`} text="Each day is a mission that lands at 00:00 UTC with your current settings. Click a day to land then." />
+              <Panel id="launch-calendar">
+                <LaunchCalendar ds={ds} site={site} mission={mission} todayIdx={nowIdx(ds)} onPick={setLanding} />
+              </Panel>
+            </>
+          )}
 
-          <Panel id="timeline" title="Timeline" hint="Drag to move the landing. Solid box: mission. Dashed box: delayed landing.">
-            <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />
-            <label className="mt-4 flex items-center gap-3 text-sm text-ink-2">
-              <span className="shrink-0">Mission time</span>
-              <input type="range" className="w-full" min={a.startIdx} max={a.endIdx - 1} value={cur} onChange={(e) => setCursor(+e.target.value)} />
-              <span className="w-24 shrink-0 text-right tabular">T+{fmtHours((cur - a.startIdx) * ds.meta.stepHours)}</span>
-            </label>
-          </Panel>
-
-          <Panel id="sky-view" title="Sky view" hint="Standing at the site: the skyline, with the Sun and Earth at the mission time">
-            <SkyView ds={ds} site={site} a={a} cursor={cur} onCursor={setCursor} />
-          </Panel>
-
-          <Panel id="launch-calendar" title="Launch calendar" hint={`${site.name}: each day is a mission landing at 00:00 UTC with your current settings`}>
-            <LaunchCalendar ds={ds} site={site} mission={mission} todayIdx={nowIdx(ds)} onPick={setLanding} />
-          </Panel>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <Panel id="horizon-view" title="Horizon view" hint="Terrain around the site, with the Sun and Earth paths">
-              <Panorama site={site} a={a} cursor={cur} />
-            </Panel>
-            <Panel title="Elevation during the mission" hint="Above the shaded terrain means visible">
-              <ElevationChart ds={ds} site={site} a={a} cursor={cur} />
-            </Panel>
-          </div>
+          {view === 'analysis' && (
+            <>
+              <PageHead title={`Analysis: ${site.name}`} text="Why the site is lit or dark: the skyline around it, and where the Sun and Earth are during the mission." />
+              <Panel id="sky-view" title="Sky view" hint="Standing at the site: the skyline, with the Sun and Earth at the mission time">
+                <SkyView ds={ds} site={site} a={a} cursor={cur} onCursor={setCursor} />
+              </Panel>
+              <div className="grid gap-5 xl:grid-cols-2">
+                <Panel id="horizon-view" title="Horizon view" hint="Terrain around the site, with the Sun and Earth paths">
+                  <Panorama site={site} a={a} cursor={cur} />
+                </Panel>
+                <Panel title="Elevation during the mission" hint="Above the shaded terrain means visible">
+                  <ElevationChart ds={ds} site={site} a={a} cursor={cur} />
+                </Panel>
+              </div>
+            </>
+          )}
         </main>
       </div>
     )
@@ -336,7 +382,7 @@ export default function App() {
       {appBar}
       {body}
       <Toast message={toast} onDone={clearToast} />
-      <LearnTour open={learnOn && !!ds} onClose={closeLearn} />
+      <LearnTour open={learnOn && !!ds} onClose={closeLearn} onNavigate={navigateToTarget} />
       <Menu open={menuOpen} onClose={() => setMenuOpen(false)} theme={theme} setTheme={setTheme} ds={ds} />
     </MotionConfig>
   )
