@@ -1,5 +1,5 @@
 import { MotionConfig } from 'framer-motion'
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import ElevationChart from './components/ElevationChart'
 import Menu from './components/Menu'
 import MissionPanel from './components/MissionPanel'
@@ -13,9 +13,13 @@ import LaunchCalendar from './components/LaunchCalendar'
 import PlanPanel from './components/PlanPanel'
 import Popover, { MenuItem } from './components/Popover'
 import ScenarioBanner from './components/ScenarioBanner'
-import { analyze, bestLanding, clampIdx, fmtHours, nowIdx, withSunMode } from './lib/engine'
-import { scrollToId } from './lib/dom'
+import Toast from './components/Toast'
+import { compareSites } from './lib/compare'
+import { analyze, bestLanding, clampIdx, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
+import { copyText, scrollToId } from './lib/dom'
 import { checkPreset, PRESETS, resolvePreset, type Preset } from './lib/presets'
+import { buildCsv, buildReportHtml, downloadText, openReport } from './lib/report'
+import { decodePlan, encodePlan } from './lib/urlState'
 import { useTheme } from './lib/theme'
 import type { Dataset, Mission, PlanState, SunMode } from './lib/types'
 
@@ -35,6 +39,8 @@ function Panel({ id, title, hint, children, className = '' }: { id?: string; tit
   )
 }
 
+const idxDay = (ds: Dataset, i: number) => idxToDate(ds, i).toISOString().slice(0, 10)
+
 export default function App() {
   const [rawDs, setDs] = useState<Dataset | null>(null)
   const [sunMode, setSunMode] = useState<SunMode>('centre')
@@ -46,23 +52,28 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [planOn, setPlanOn] = useState(false)
   const [scenario, setScenario] = useState<Preset | null>(null)
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
+  const [urlReady, setUrlReady] = useState(false)
   const [theme, setTheme] = useTheme()
+  const notify = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }))
+  const clearToast = useCallback(() => setToast(null), [])
 
   useEffect(() => {
     fetch('/data/sites.json')
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then((d: Dataset) => {
         setDs(d)
-        const today = nowIdx(d)
-        if (today !== null) {
-          setMission((m) => ({ ...m, startIdx: today }))
-          setCursor(today)
-          return
-        }
-        const first = d.sites.find((x) => x.id === 'malapert') ?? d.sites[0]
-        const best = bestLanding(d, first, { startIdx: 0, durationH: 24 * 10, needComms: true, slipDays: 0 })
-        setMission((m) => ({ ...m, startIdx: best.idx }))
-        setCursor(best.idx)
+        // A shared link wins; anything it doesn't set falls back to the defaults (landing: today, else the best date).
+        const fromUrl = decodePlan(d, location.search)
+        const id = fromUrl.siteId ?? 'malapert'
+        setSiteId(id)
+        if (fromUrl.sunMode) setSunMode(fromUrl.sunMode)
+        const base: Mission = { startIdx: 0, durationH: fromUrl.durationH ?? 24 * 10, needComms: fromUrl.needComms ?? true, slipDays: fromUrl.slipDays ?? 0 }
+        let start = fromUrl.startIdx ?? nowIdx(d)
+        if (start === null) start = bestLanding(d, d.sites.find((x) => x.id === id) ?? d.sites[0], base).idx
+        setMission({ ...base, startIdx: start })
+        setCursor(start)
+        setUrlReady(true)
       })
       .catch((e) => setError(String(e)))
   }, [])
@@ -87,6 +98,22 @@ export default function App() {
     [ds, site, mission]
   )
 
+  // Keep the address bar in sync with the plan (replaceState, debounced: no history entries, no reloads).
+  const shareQuery = ds && site ? encodePlan(ds, { siteId: site.id, ...mission, sunMode }) : null
+  useEffect(() => {
+    if (!urlReady || !shareQuery) return
+    const t = setTimeout(() => {
+      try { history.replaceState(history.state, '', `${location.pathname}?${shareQuery}${location.hash}`) } catch { /* rate-limited by the browser; the next change retries */ }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [urlReady, shareQuery])
+  const shareLink = shareQuery ? `${location.origin}${location.pathname}?${shareQuery}` : location.href
+
+  const reportInput = () => {
+    if (!ds || !site || !a) return null
+    return { ds, site, mission, sunMode, a, slipped, rows: compareSites(ds, mission), link: shareLink, generatedAt: new Date(), name: `rocky-${site.id}-${idxDay(ds, mission.startIdx)}` }
+  }
+
   const isDark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
 
   const appBar = (
@@ -100,6 +127,51 @@ export default function App() {
           <span className="hidden truncate text-[13px] text-ink-3 sm:inline">Lunar landing site navigator</span>
         </div>
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
+          <Popover
+            label="Share"
+            title="Share link, report and CSV"
+            width={300}
+            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 11.5V2.5M5.5 6 9 2.5 12.5 6M4 9.5v5.5h10V9.5" /></svg>}
+          >
+            {(close) => (
+              <>
+                <MenuItem
+                  title="Copy link"
+                  detail="A link that reopens this exact plan"
+                  disabled={!ds}
+                  onSelect={async () => {
+                    const ok = await copyText(shareLink)
+                    close()
+                    notify(ok ? 'Link copied' : "Couldn't copy. Copy it from the address bar instead.")
+                  }}
+                />
+                <MenuItem
+                  title="Download report"
+                  detail="One page to print or save as PDF"
+                  disabled={!ds}
+                  onSelect={() => {
+                    const r = reportInput()
+                    if (!r) return
+                    const how = openReport(buildReportHtml(r), r.name + '.html')
+                    close()
+                    notify(how === 'opened' ? 'Report opened in a new tab' : 'Report downloaded')
+                  }}
+                />
+                <MenuItem
+                  title="Download CSV"
+                  detail="The all-sites table as a spreadsheet"
+                  disabled={!ds}
+                  onSelect={() => {
+                    const r = reportInput()
+                    if (!r) return
+                    downloadText(r.name + '-all-sites.csv', buildCsv(r), 'text/csv')
+                    close()
+                    notify('CSV downloaded')
+                  }}
+                />
+              </>
+            )}
+          </Popover>
           <Popover
             label="Scenarios"
             title="One-click demo scenarios"
@@ -241,6 +313,7 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       {appBar}
       {body}
+      <Toast message={toast} onDone={clearToast} />
       <Menu open={menuOpen} onClose={() => setMenuOpen(false)} theme={theme} setTheme={setTheme} ds={ds} />
     </MotionConfig>
   )
