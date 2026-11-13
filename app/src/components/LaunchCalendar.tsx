@@ -8,12 +8,18 @@ const INK: Record<Verdict, string> = { GO: 'text-both-ink', RISKY: 'text-risk-in
 const WEEK = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const HATCH = 'repeating-linear-gradient(135deg, var(--line-strong) 0 2px, transparent 2px 5px)'
 
+const mixOf = (c: DayCell) => Math.round(30 + 0.7 * c.score.coveragePct)
+
 function cellBg(c: DayCell): string {
   if (!c.score.complete) return HATCH
   // Intensity by coverage: 30% tint at 0% coverage up to the full colour at 100%.
-  const mix = Math.round(30 + 0.7 * c.score.coveragePct)
-  return `color-mix(in srgb, var(${COLOR[c.score.verdict]}) ${mix}%, var(--surface-2))`
+  return `color-mix(in srgb, var(${COLOR[c.score.verdict]}) ${mixOf(c)}%, var(--surface-2))`
 }
+
+/** Text on a cell: dark ink on pale tints, white on strong colour, so numbers stay readable. */
+const cellInk = (c: DayCell) => (!c.score.complete ? 'text-ink-3' : mixOf(c) >= 70 ? 'text-white [text-shadow:0_0.5px_1px_rgba(0,0,0,0.35)]' : 'text-ink')
+
+export type CellLabel = 'day' | 'coverage'
 
 function describe(ds: Dataset, c: DayCell): string {
   const day = fmtDay(idxToDate(ds, c.idx))
@@ -21,9 +27,10 @@ function describe(ds: Dataset, c: DayCell): string {
   return `${day}: ${c.score.verdict}, ${Math.round(c.score.coveragePct)}% coverage, longest blackout ${fmtHours(c.score.longestBlackoutH)}`
 }
 
-const Months = memo(function Months({ ds, months, landingDay, todayDay, roving, onHover, onPick, onKey }: {
+const Months = memo(function Months({ ds, months, landingDay, todayDay, roving, onHover, onPick, onKey, label }: {
   ds: Dataset
   months: MonthBlock[]
+  label: CellLabel
   landingDay: number
   todayDay: number | null
   roving: number
@@ -32,17 +39,17 @@ const Months = memo(function Months({ ds, months, landingDay, todayDay, roving, 
   onKey: (e: React.KeyboardEvent, idx: number) => void
 }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-5 gap-y-4" role="grid" aria-label="Landing days by verdict">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-x-6 gap-y-5" role="grid" aria-label="Landing days by verdict">
       {months.map((m) => (
         <div key={m.key} role="rowgroup">
-          <div className="mb-1 text-xs font-medium text-ink-2">{m.label}</div>
-          <div className="grid grid-cols-7 gap-[3px] text-center text-[10px] text-ink-3" aria-hidden>
+          <div className="mb-1.5 text-[13px] font-semibold">{m.label}</div>
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-ink-3" aria-hidden>
             {WEEK.map((d, i) => <span key={i}>{d}</span>)}
           </div>
-          <div className="mt-[3px] grid grid-cols-7 gap-[3px]" role="row">
+          <div className="mt-1 grid grid-cols-7 gap-1" role="row">
             {Array.from({ length: m.lead }, (_, i) => <span key={'l' + i} />)}
             {m.days.map((c, i) => {
-              if (!c) return <span key={i} className="aspect-square rounded-[4px] bg-surface-2/50" />
+              if (!c) return <span key={i} className="aspect-square rounded-[6px] bg-surface-2/50" />
               const landing = c.idx === landingDay
               const today = c.idx === todayDay
               return (
@@ -59,10 +66,11 @@ const Months = memo(function Months({ ds, months, landingDay, todayDay, roving, 
                   onMouseLeave={() => onHover(null)}
                   onFocus={() => onHover(c)}
                   onKeyDown={(e) => onKey(e, c.idx)}
-                  className={`relative aspect-square rounded-[4px] transition-transform duration-100 hover:scale-110 focus-visible:z-10 ${landing ? 'z-[1] ring-2 ring-ink ring-offset-1 ring-offset-surface' : ''}`}
+                  className={`relative grid aspect-square place-items-center rounded-[6px] text-[11px] font-medium tabular leading-none transition-transform duration-100 hover:scale-110 focus-visible:z-10 ${cellInk(c)} ${landing ? 'z-[1] ring-2 ring-ink ring-offset-1 ring-offset-surface' : ''}`}
                   style={{ background: cellBg(c) }}
                 >
-                  {today && <span className="absolute inset-0 m-auto h-[5px] w-[5px] rounded-full bg-ink shadow-[0_0_0_1.5px_var(--surface)]" />}
+                  {label === 'day' ? c.day : c.score.complete ? Math.round(c.score.coveragePct) : '–'}
+                  {today && <span className="absolute bottom-[3px] left-1/2 h-[4px] w-[4px] -translate-x-1/2 rounded-full bg-current" />}
                 </button>
               )
             })}
@@ -114,6 +122,7 @@ export default function LaunchCalendar({ ds, site, mission, todayIdx, onPick }: 
     root.current?.querySelector<HTMLButtonElement>(`[data-idx="${next}"]`)?.focus()
   }, [ds, byIdx])
 
+  const [label, setLabel] = useState<CellLabel>('day')
   const shown = hover ?? byIdx.get(landingDay) ?? null
   return (
     <div ref={root}>
@@ -135,10 +144,24 @@ export default function LaunchCalendar({ ds, site, mission, todayIdx, onPick }: 
         ) : (
           <span className="text-ink-3">Hover or focus a day to see its verdict. Click to land that day.</span>
         )}
-        {stale && <span className="ml-auto text-xs text-ink-3">Updating…</span>}
+        {stale && <span className="text-xs text-ink-3">Updating…</span>}
+        <div className="ml-auto grid grid-cols-2 gap-0.5 rounded-[9px] bg-surface p-[2px] text-xs shadow-control" role="radiogroup" aria-label="Number shown in each day">
+          {([['day', 'Date'], ['coverage', 'Coverage %']] as const).map(([v, t]) => (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={label === v}
+              onClick={() => setLabel(v)}
+              className={`rounded-[7px] px-2.5 py-1 transition-[background-color,color] duration-150 ${label === v ? 'bg-surface-2 font-medium text-ink' : 'text-ink-2 hover:text-ink'}`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <Months ds={ds} months={months} landingDay={landingDay} todayDay={todayDay} roving={roving} onHover={setHover} onPick={pick} onKey={onKey} />
+      <Months ds={ds} months={months} landingDay={landingDay} todayDay={todayDay} roving={roving} onHover={setHover} onPick={pick} onKey={onKey} label={label} />
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-3">
         {(['GO', 'RISKY', 'NO-GO'] as const).map((v) => (
@@ -152,7 +175,7 @@ export default function LaunchCalendar({ ds, site, mission, todayIdx, onPick }: 
         </span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-[3px]" style={{ background: HATCH }} />runs past the data</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-[3px] ring-2 ring-ink ring-offset-1 ring-offset-surface" />landing day</span>
-        <span className="flex items-center gap-1.5"><span className="h-[5px] w-[5px] rounded-full bg-ink" />today</span>
+        <span className="flex items-center gap-1.5"><span className="h-[4px] w-[4px] rounded-full bg-ink" />today</span>
       </div>
     </div>
   )

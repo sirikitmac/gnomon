@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion'
-import { analyze, fmtDate, fmtHours, hoursUntilChange, idxToDate } from '../lib/engine'
-import type { Analysis, Dataset, Mission, Site, Verdict } from '../lib/types'
+import { compareSites } from '../lib/compare'
+import { fmtDate, fmtHours, hoursUntilChange, idxToDate } from '../lib/engine'
+import type { Dataset, Mission, Verdict } from '../lib/types'
 
 const vPill: Record<Verdict, string> = {
   GO: 'bg-both/15 text-both-ink',
   RISKY: 'bg-risk/15 text-risk-ink',
   'NO-GO': 'bg-nogo/15 text-nogo-ink',
 }
-const vRank: Record<Verdict, number> = { GO: 0, RISKY: 1, 'NO-GO': 2 }
 
 function NowCell({ ds, flags, idx, color, setWord, riseWord }: { ds: Dataset; flags: number[]; idx: number; color: string; setWord: string; riseWord: string }) {
   const vis = !!flags[idx]
@@ -23,8 +23,6 @@ function NowCell({ ds, flags, idx, color, setWord, riseWord }: { ds: Dataset; fl
   )
 }
 
-interface Row { site: Site; a: Analysis; slipped: Analysis | null }
-
 export default function CompareTable({ ds, mission, cursor, selectedId, onSelect }: {
   ds: Dataset
   mission: Mission
@@ -32,14 +30,7 @@ export default function CompareTable({ ds, mission, cursor, selectedId, onSelect
   selectedId: string
   onSelect: (id: string) => void
 }) {
-  const slipIdx = mission.startIdx + (mission.slipDays * 24) / ds.meta.stepHours
-  const rows: Row[] = ds.sites
-    .map((site) => ({
-      site,
-      a: analyze(ds, site, mission.startIdx, mission),
-      slipped: mission.slipDays > 0 ? analyze(ds, site, slipIdx, mission) : null,
-    }))
-    .sort((x, y) => vRank[x.a.verdict] - vRank[y.a.verdict] || y.a.coveragePct - x.a.coveragePct)
+  const rows = compareSites(ds, mission)
 
   return (
     <div className="-mx-4 overflow-x-auto px-4">
