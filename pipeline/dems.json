@@ -1,20 +1,60 @@
 {
   "_help": "Paths are relative to pipeline/. Files live in pipeline/raw/ (git-ignored). 5 m tiles: pgda.gsfc.nasa.gov/data/LOLA_5mpp/ (Barker et al. 2021). Mosaics: pgda.gsfc.nasa.gov/products/90 (Barker et al. 2023). A site with no entry uses a smooth-sphere horizon (low confidence).",
   "mons-mouton": [
-    { "path": "raw/LDEM_80S_20MPP_ADJ.TIF", "label": "LOLA 20 m", "maxRangeKm": 150 }
+    {
+      "path": "raw/LDEM_80S_20MPP_ADJ.TIF",
+      "label": "LOLA 20 m",
+      "maxRangeKm": 150
+    }
   ],
   "shackleton-ce7": [
-    { "path": "raw/LDEM_80S_20MPP_ADJ.TIF", "label": "LOLA 20 m", "maxRangeKm": 150 }
+    {
+      "path": "raw/LDEM_80S_20MPP_ADJ.TIF",
+      "label": "LOLA 20 m",
+      "maxRangeKm": 150
+    }
   ],
   "malapert": [
-    { "path": "raw/Site23_final_adj_5mpp_surf.tif", "label": "PGDA 5 m (Site23)" },
-    { "path": "raw/LDEM_80S_20MPP_ADJ.TIF", "label": "LOLA 20 m", "maxRangeKm": 150 }
+    {
+      "path": "raw/Site23_final_adj_5mpp_surf.tif",
+      "label": "PGDA 5 m (Site23)"
+    },
+    {
+      "path": "raw/LDEM_80S_20MPP_ADJ.TIF",
+      "label": "LOLA 20 m",
+      "maxRangeKm": 150
+    }
   ],
   "haworth": [
-    { "path": "raw/Haworth_final_adj_5mpp_surf.tif", "label": "PGDA 5 m (Haworth)" },
-    { "path": "raw/LDEM_80S_20MPP_ADJ.TIF", "label": "LOLA 20 m", "maxRangeKm": 150 }
+    {
+      "path": "raw/Haworth_final_adj_5mpp_surf.tif",
+      "label": "PGDA 5 m (Haworth)"
+    },
+    {
+      "path": "raw/LDEM_80S_20MPP_ADJ.TIF",
+      "label": "LOLA 20 m",
+      "maxRangeKm": 150
+    }
   ],
   "chandrayaan-3": [
-    { "path": "raw/LDEM_60S_240MPP_ADJ.TIF", "label": "LOLA 240 m", "maxRangeKm": 150 }
+    {
+      "path": "raw/LDEM_60S_240MPP_ADJ.TIF",
+      "label": "LOLA 240 m",
+      "maxRangeKm": 150
+    }
+  ],
+  "shackleton-ridge": [
+    {
+      "path": "raw/LDEM_80S_20MPP_ADJ.TIF",
+      "label": "LOLA 20 m",
+      "maxRangeKm": 150
+    }
+  ],
+  "nobile-rim-2": [
+    {
+      "path": "raw/LDEM_80S_20MPP_ADJ.TIF",
+      "label": "LOLA 20 m",
+      "maxRangeKm": 150
+    }
   ]
 }

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { isOriginal } from '../lib/compare'
 import type { Site } from '../lib/types'
 
 const roleDot: Record<string, string> = {
@@ -7,11 +8,28 @@ const roleDot: Record<string, string> = {
   'Science trade-off': 'bg-risk',
   'Real mission': 'bg-both',
   Contrast: 'bg-ink-3',
+  'Artemis candidate': 'bg-accent',
 }
 
 export default function SitePicker({ sites, value, onChange }: { sites: Site[]; value: string; onChange: (id: string) => void }) {
+  const original = sites.filter(isOriginal)
+  const more = sites.filter((s) => !isOriginal(s))
   return (
     <div className="-mx-1 flex flex-col gap-0.5">
+      <SiteList sites={original} value={value} onChange={onChange} />
+      {more.length > 0 && (
+        <>
+          <div className="mt-2 px-3 pb-1 text-[11px] font-medium text-ink-3">More sites</div>
+          <SiteList sites={more} value={value} onChange={onChange} />
+        </>
+      )}
+    </div>
+  )
+}
+
+function SiteList({ sites, value, onChange }: { sites: Site[]; value: string; onChange: (id: string) => void }) {
+  return (
+    <>
       {sites.map((s) => {
         const active = s.id === value
         return (
@@ -41,6 +59,6 @@ export default function SitePicker({ sites, value, onChange }: { sites: Site[]; 
           </button>
         )
       })}
-    </div>
+    </>
   )
 }
