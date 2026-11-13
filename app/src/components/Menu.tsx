@@ -12,6 +12,8 @@ const REFS = [
   { title: 'Mazarico et al. 2011, Illumination conditions of the lunar polar regions using LOLA topography', note: 'The skyline-and-Sun method this app follows', url: 'https://ntrs.nasa.gov/citations/20120010094' },
   { title: 'Lunar Polar Illumination (PGDA)', note: 'NASA lighting maps used to check our results', url: 'https://pgda.gsfc.nasa.gov/products/69' },
   { title: 'Moon Trek', note: 'South pole illumination and Earth visibility layers, used to check results', url: 'https://trek.nasa.gov/moon/' },
+  { title: 'Quickmap (LROC, Arizona State University)', note: 'High-resolution imagery and terrain, used to check site terrain', url: 'https://quickmap.lroc.asu.edu/' },
+  { title: 'Canadian Space Agency: Moon Exploration', note: 'Background on lunar missions and Artemis partners', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/' },
   { title: 'NASA SVS: CGI Moon Kit', note: 'Moon color and elevation maps for the 3D globe', url: 'https://svs.gsfc.nasa.gov/4720' },
   { title: 'NASA Artemis III candidate landing regions', note: 'Main site list', url: 'https://www.nasa.gov/humans-in-space/artemis/' },
   { title: 'Apollo landing sites (NASA NSSDCA)', note: 'Coordinates for the Apollo contrast site', url: 'https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html' },

@@ -61,6 +61,7 @@ Site coordinates in `pipeline/sites.json` are approximate starting values: verif
 - Method: Mazarico et al. 2011, Illumination conditions of the lunar polar regions using LOLA topography: https://ntrs.nasa.gov/citations/20120010094
 - Validation: PGDA Lunar Polar Illumination: https://pgda.gsfc.nasa.gov/products/69
 - LOLA gridded polar DEMs (PDS / PGDA)
+- Official challenge resources: JPL Horizons, Moon Trek (https://trek.nasa.gov/moon/), Quickmap (https://quickmap.lroc.asu.edu/), CSA Moon Exploration
 - Moon Trek, PGDA Lunar Polar Illumination, NASA SVS south pole illumination 2025–2028 (validation)
 - NASA Artemis III candidate regions; Apollo coordinates (NSSDCA). Non-NASA sites (Chang'e-7, Chandrayaan-3) are labelled with their real source.
 
