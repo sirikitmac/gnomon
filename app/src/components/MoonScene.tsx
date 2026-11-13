@@ -55,18 +55,35 @@ function makeProceduralMoon(): THREE.CanvasTexture {
   return tex
 }
 
-function useMoonTexture() {
+/**
+ * NASA SVS CGI Moon Kit (svs.gsfc.nasa.gov/4720): LRO color map with filled poles, and a
+ * normal map derived from the LOLA elevation map (5x vertical exaggeration) for crater shading.
+ * Uses the 8k color map when the GPU allows it, otherwise 4k. Falls back to a procedural Moon.
+ */
+function useMoonTextures() {
+  const { gl } = useThree()
   const procedural = useMemo(() => makeProceduralMoon(), [])
-  const [tex, setTex] = useState<THREE.Texture>(procedural)
+  const [map, setMap] = useState<THREE.Texture>(procedural)
+  const [normalMap, setNormalMap] = useState<THREE.Texture | null>(null)
   useEffect(() => {
-    new THREE.TextureLoader().load(
-      '/textures/moon_color.jpg',
-      (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; setTex(t) },
-      undefined,
-      () => {} // keep procedural fallback
-    )
-  }, [])
-  return tex
+    const loader = new THREE.TextureLoader()
+    const aniso = Math.min(8, gl.capabilities.getMaxAnisotropy())
+    const big = gl.capabilities.maxTextureSize >= 8192 && !matchMedia('(pointer: coarse)').matches
+    let hasSharp = false
+    const loadColor = (url: string, sharp: boolean) =>
+      loader.load(url, (t) => {
+        if (!sharp && hasSharp) return // the 8k map already arrived; keep it
+        if (sharp) hasSharp = true
+        t.colorSpace = THREE.SRGBColorSpace
+        t.anisotropy = aniso
+        setMap(t)
+      }, undefined, () => {})
+    // Show the 4k map fast, then swap in the 8k one if this device can take it.
+    loadColor('/textures/moon_color.jpg', false)
+    if (big) loadColor('/textures/moon_color_8k.jpg', true)
+    loader.load('/textures/moon_normal.jpg', (t) => { t.anisotropy = aniso; setNormalMap(t) }, undefined, () => {})
+  }, [gl])
+  return { map, normalMap }
 }
 
 interface Props {
@@ -160,7 +177,7 @@ function useLabelSpecs(site: Site, sites: Site[], showFeatures: boolean, onSelec
 const shortName = (x: Site) => x.name.replace(/\s*\(.*\)\s*/, '')
 
 function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
-  const tex = useMoonTexture()
+  const { map: tex, normalMap } = useMoonTextures()
   const sunRef = useRef<THREE.DirectionalLight>(null)
   const earthRef = useRef<THREE.Mesh>(null)
   const markerRef = useRef<THREE.Group>(null)
@@ -249,7 +266,11 @@ function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
       <directionalLight ref={sunRef} intensity={3.2} color="#fff4e0" position={sunDir} />
       <mesh>
         <sphereGeometry args={[1, 128, 128]} />
-        <meshStandardMaterial map={tex} roughness={1} metalness={0} bumpMap={tex} bumpScale={0.6} />
+        {normalMap ? (
+          <meshStandardMaterial map={tex} normalMap={normalMap} normalScale={new THREE.Vector2(1, 1)} roughness={1} metalness={0} />
+        ) : (
+          <meshStandardMaterial map={tex} roughness={1} metalness={0} bumpMap={tex} bumpScale={0.6} />
+        )}
       </mesh>
       <group ref={markerRef} position={sitePos} scale={Math.abs(site.lat) > 60 ? 0.4 : 1}>
         <mesh>
