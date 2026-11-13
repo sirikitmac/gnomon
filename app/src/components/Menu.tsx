@@ -49,7 +49,7 @@ export default function Menu({ open, onClose, theme, setTheme, ds }: {
       {open && (
         <>
           <motion.div
-            className="fixed inset-0 z-40 bg-black/40"
+            className="fixed inset-0 z-40 bg-black/25"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.24, ease: EASE }}
             onClick={onClose}
@@ -60,7 +60,7 @@ export default function Menu({ open, onClose, theme, setTheme, ds }: {
             role="dialog"
             aria-modal="true"
             aria-label="Menu"
-            className="fixed inset-y-0 left-0 z-50 flex w-[min(420px,92vw)] flex-col border-r border-line bg-surface shadow-2xl outline-none"
+            className="fixed inset-y-0 left-0 z-50 flex w-[min(420px,92vw)] flex-col border-r border-line bg-surface/90 shadow-pop outline-none backdrop-blur-2xl backdrop-saturate-150"
             initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
             transition={{ duration: 0.24, ease: EASE }}
           >

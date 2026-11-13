@@ -34,7 +34,7 @@ export default function SummaryStrip({ ds, a, slipped, slipDays, needComms }: { 
   const w = a.firstWindow
   const s = slipped && slipDays > 0 ? slipped : null
   return (
-    <section className="grid overflow-hidden rounded-2xl border border-line bg-surface lg:grid-cols-[minmax(280px,1.3fr)_repeat(4,minmax(0,1fr))]">
+    <section className="grid overflow-hidden rounded-[14px] bg-surface shadow-card lg:grid-cols-[minmax(280px,1.3fr)_repeat(4,minmax(0,1fr))]">
       <div className="flex items-start gap-4 border-b border-line p-4 lg:border-b-0 lg:border-r">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div

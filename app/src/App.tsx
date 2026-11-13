@@ -17,10 +17,10 @@ const MoonScene = lazy(() => import('./components/MoonScene'))
 
 function Panel({ title, hint, children, className = '' }: { title?: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl border border-line bg-surface p-4 ${className}`}>
+    <section className={`rounded-[14px] bg-surface p-4 shadow-card ${className}`}>
       {title && (
         <header className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <h2 className="font-display text-base font-semibold">{title}</h2>
+          <h2 className="font-display text-[15px] font-semibold">{title}</h2>
           {hint && <span className="text-xs text-ink-3">{hint}</span>}
         </header>
       )}
@@ -69,14 +69,14 @@ export default function App() {
   const isDark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
 
   const appBar = (
-    <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-line bg-surface/70 backdrop-blur-2xl backdrop-saturate-150">
       <div className="mx-auto flex h-14 max-w-[1500px] items-center gap-3 px-4 lg:px-6">
-        <button onClick={() => setMenuOpen(true)} aria-label="Open menu" className="grid h-9 w-9 place-items-center rounded-lg text-ink-2 hover:bg-surface-2 active:scale-[0.97]">
+        <button onClick={() => setMenuOpen(true)} aria-label="Open menu" className="grid h-9 w-9 place-items-center rounded-lg text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.96]">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 5h12M3 9h12M3 13h12" /></svg>
         </button>
         <div className="flex min-w-0 items-baseline gap-3">
-          <span className="font-display text-lg font-semibold">Rocky</span>
-          <span className="hidden truncate text-sm text-ink-3 sm:inline">Lunar landing site navigator</span>
+          <span className="font-display text-[17px] font-semibold tracking-tight">Rocky</span>
+          <span className="hidden truncate text-[13px] text-ink-3 sm:inline">Lunar landing site navigator</span>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {ds?.meta.mock && (
@@ -87,7 +87,7 @@ export default function App() {
           <button
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="grid h-9 w-9 place-items-center rounded-lg text-ink-2 hover:bg-surface-2 active:scale-[0.97]"
+            className="grid h-9 w-9 place-items-center rounded-lg text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.96]"
           >
             {isDark ? (
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="9" cy="9" r="3.4" /><path d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2M3.7 3.7l1.4 1.4M12.9 12.9l1.4 1.4M3.7 14.3l1.4-1.4M12.9 5.1l1.4-1.4" /></svg>
@@ -113,7 +113,7 @@ export default function App() {
     }
     const cur = Math.max(a.startIdx, Math.min(a.endIdx - 1, cursor))
     body = (
-      <div className="mx-auto grid max-w-[1500px] gap-4 p-4 lg:grid-cols-[288px_minmax(0,1fr)] lg:p-6">
+      <div className="mx-auto grid max-w-[1500px] gap-5 p-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:p-6">
         <aside className="flex flex-col gap-4 lg:sticky lg:top-[4.5rem] lg:self-start">
           <Panel title="Landing site">
             <SitePicker sites={ds.sites} value={site.id} onChange={setSiteId} />
@@ -132,11 +132,11 @@ export default function App() {
           </Panel>
         </aside>
 
-        <main className="flex min-w-0 flex-col gap-4">
+        <main className="flex min-w-0 flex-col gap-5">
           <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} />
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <section className="relative h-[380px] overflow-hidden rounded-2xl border border-line bg-[#060a12] lg:h-[440px]">
+            <section className="relative h-[380px] overflow-hidden rounded-[14px] bg-[#05070c] shadow-card lg:h-[440px]">
               <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">Loading Moon…</div>}>
                 <MoonScene site={site} sites={ds.sites} idx={cur} onSelect={setSiteId} />
               </Suspense>

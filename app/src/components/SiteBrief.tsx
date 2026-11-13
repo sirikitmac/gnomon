@@ -30,7 +30,7 @@ function confidenceLabel(site: Site): string {
 
 export default function SiteBrief({ ds, site, idx }: { ds: Dataset; site: Site; idx: number }) {
   return (
-    <section className="flex flex-col rounded-2xl border border-line bg-surface p-5">
+    <section className="flex flex-col rounded-[14px] bg-surface p-5 shadow-card">
       <div className="text-xs text-ink-3">{site.role} site</div>
       <h2 className="mt-1 font-display text-2xl font-semibold leading-tight">{site.name}</h2>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">{site.story}</p>
