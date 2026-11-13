@@ -2,6 +2,7 @@ import { MotionConfig } from 'framer-motion'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import ElevationChart from './components/ElevationChart'
 import Menu from './components/Menu'
+import MissionAdvice from './components/MissionAdvice'
 import MissionPanel from './components/MissionPanel'
 import Panorama from './components/Panorama'
 import SiteBrief from './components/SiteBrief'
@@ -19,6 +20,7 @@ import SkyView from './components/SkyView'
 import Toast from './components/Toast'
 import ViewTabs from './components/ViewTabs'
 import { TARGET_VIEW, viewFromHash, type View } from './lib/views'
+import { missionAdvice } from './lib/advice'
 import { compareSites, loadCompareIds, saveCompareIds } from './lib/compare'
 import { analyze, bestLanding, clampIdx, fmtDate, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
 import { copyText } from './lib/dom'
@@ -166,6 +168,8 @@ export default function App() {
     () => (ds && site && mission.slipDays > 0 ? analyze(ds, site, mission.startIdx + (mission.slipDays * 24) / ds.meta.stepHours, mission) : null),
     [ds, site, mission]
   )
+
+  const advice = useMemo(() => (ds && site && a ? missionAdvice(ds, site, mission, a, slipped) : []), [ds, site, mission, a, slipped])
 
   // Keep the address bar in sync with the plan (replaceState, debounced: no history entries, no reloads).
   const shareQuery = ds && site ? encodePlan(ds, { siteId: site.id, ...mission, sunMode }) : null
@@ -366,6 +370,9 @@ export default function App() {
                 </section>
                 <SiteBrief ds={ds} site={site} idx={cur} />
               </div>
+              <Panel id="advice" title="Mission advice" hint="Each note comes from the numbers on this page">
+                <MissionAdvice items={advice} onLanding={setLanding} onSite={setSiteId} />
+              </Panel>
               <Panel id="timeline" title="Timeline" hint="Drag to move the landing. Solid box: mission. Dashed box: delayed landing.">
                 <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />
                 <label className="mt-4 flex items-center gap-3 text-sm text-ink-2">
