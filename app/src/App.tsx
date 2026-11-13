@@ -20,7 +20,7 @@ import Toast from './components/Toast'
 import ViewTabs from './components/ViewTabs'
 import { TARGET_VIEW, viewFromHash, type View } from './lib/views'
 import { compareSites, loadCompareIds, saveCompareIds } from './lib/compare'
-import { analyze, bestLanding, clampIdx, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
+import { analyze, bestLanding, clampIdx, fmtDate, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
 import { copyText } from './lib/dom'
 import { checkPreset, PRESETS, resolvePreset, type Preset } from './lib/presets'
 import { buildCsv, buildReportHtml, downloadText, openReport } from './lib/report'
@@ -347,7 +347,14 @@ export default function App() {
                   <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">{moonMode === 'globe' ? 'Loading Moon…' : 'Loading terrain…'}</div>}>
                     {moonMode === 'globe'
                       ? <MoonScene site={site} sites={ds.sites} idx={cur} time={idxToDate(ds, cur)} onSelect={setSiteId} />
-                      : <SiteScene site={site} idx={cur} />}
+                      : <SiteScene
+                          site={site}
+                          idx={cur}
+                          range={[a.startIdx, a.endIdx]}
+                          stepsPerDay={24 / ds.meta.stepHours}
+                          timeLabel={`${fmtDate(idxToDate(ds, cur))} · T+${fmtHours((cur - a.startIdx) * ds.meta.stepHours)}`}
+                          onCursor={setCursor}
+                        />}
                   </Suspense>
                   <MoonModeSwitch value={moonMode} onChange={setMoonMode} />
                   {moonMode === 'globe' && (

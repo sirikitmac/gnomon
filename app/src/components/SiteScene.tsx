@@ -351,8 +351,58 @@ const btn = (on: boolean) =>
     on ? 'bg-[#e5e9f1] text-[#0f1626] ring-transparent' : 'bg-[#0f1626]/80 text-[#e5e9f1] ring-white/15 hover:bg-[#1d2a44]'
   }`
 
-export default function SiteScene({ site, idx }: { site: Site; idx: number }) {
+/**
+ * "Play mission": steps the shared mission-time cursor from landing to the end of the mission, so the
+ * Sun and Earth move across the sky and the shadows sweep the terrain. 1× = one mission day per second.
+ */
+function usePlayback(idx: number, range: [number, number] | undefined, stepsPerDay: number, onCursor: ((i: number) => void) | undefined) {
+  const [playing, setPlaying] = useState(false)
+  const [speed, setSpeed] = useState(1)
+  const at = useRef(idx)
+  at.current = idx
+  const hasRange = !!range
+  const first = range ? range[0] : idx
+  const last = range ? range[1] - 1 : idx
+  useEffect(() => {
+    if (!playing || !hasRange || !onCursor) return
+    let raf = 0
+    let prev = performance.now()
+    let acc = 0
+    const tick = (now: number) => {
+      acc += ((now - prev) / 1000) * stepsPerDay * speed
+      prev = now
+      if (acc >= 1) {
+        const n = Math.floor(acc)
+        acc -= n
+        const next = Math.min(last, at.current + n)
+        onCursor(next)
+        if (next >= last) { setPlaying(false); return }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [playing, hasRange, onCursor, stepsPerDay, speed, last])
+  const toggle = () => {
+    if (!hasRange || !onCursor) return
+    if (!playing && at.current >= last) onCursor(first) // finished: start over from the landing
+    setPlaying((p) => !p)
+  }
+  return { playing, toggle, speed, setSpeed, canPlay: hasRange && !!onCursor && last > first }
+}
+
+export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabel, onCursor }: {
+  site: Site
+  idx: number
+  /** Mission index range [landing, end) for Play mission. */
+  range?: [number, number]
+  stepsPerDay?: number
+  /** Readout of the selected time, shown while playing. */
+  timeLabel?: string
+  onCursor?: (idx: number) => void
+}) {
   const { value: terrain, loading } = useTerrain(site.id)
+  const play = usePlayback(idx, range, stepsPerDay, onCursor)
   const [exag, setExag] = useState(1)
   const [showExposure, setShowExposure] = useState(false)
   const [showArea, setShowArea] = useState(false)
@@ -423,6 +473,26 @@ export default function SiteScene({ site, idx }: { site: Site; idx: number }) {
 
       <div className="absolute inset-x-2 bottom-2 flex flex-col gap-1.5 rounded-[10px] bg-[#0b0f18]/80 p-2 text-[11px] text-[#a2adc2] ring-1 ring-white/10 backdrop-blur sm:inset-x-3 sm:bottom-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {play.canPlay && (
+            <>
+              <button
+                type="button"
+                onClick={play.toggle}
+                aria-pressed={play.playing}
+                title="Timelapse of the mission: watch the Sun and Earth move and the shadows sweep the site"
+                className="flex h-7 items-center gap-1.5 rounded-md bg-[#e5e9f1] px-2.5 text-xs font-medium text-[#0f1626] transition-transform duration-100 active:scale-[0.97]"
+              >
+                {play.playing ? (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden><rect x="1.5" y="1" width="2.5" height="8" rx="0.5" /><rect x="6" y="1" width="2.5" height="8" rx="0.5" /></svg>
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden><path d="M2.5 1.2v7.6a.5.5 0 0 0 .77.42l5.9-3.8a.5.5 0 0 0 0-.84l-5.9-3.8a.5.5 0 0 0-.77.42z" /></svg>
+                )}
+                {play.playing ? 'Pause' : 'Play mission'}
+              </button>
+              <Segmented label="Playback speed" value={play.speed} onChange={play.setSpeed} options={[[1, '1 day/s'], [4, '4 days/s']]} />
+              {timeLabel && <span className="tabular text-[#e5e9f1]">{timeLabel}</span>}
+            </>
+          )}
           <Segmented label="Vertical exaggeration" value={exag} onChange={setExag} options={[[1, '1×'], [2, '2×'], [3, '3×']]} />
           {(showExposure || showArea) && (
             <Segmented label="Exposure of" value={metric} onChange={setMetric} options={[['sun', 'Sun'], ['earth', 'Earth'], ['both', 'Both']]} />
@@ -439,7 +509,7 @@ export default function SiteScene({ site, idx }: { site: Site; idx: number }) {
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#5c96ff]" style={{ opacity: earthUp ? 1 : 0.3 }} />Earth {earthUp ? 'in view' : 'behind terrain'}</span>
           </span>
         </div>
-        {!sunUp && (
+        {!sunUp && !play.playing && (
           <p className="text-[#f5f5f7]">The Sun is behind the terrain at the landing point now: the site is in shadow. Move the mission time to see it lit.</p>
         )}
         {(showExposure || area !== null) && (
