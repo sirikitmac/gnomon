@@ -6,7 +6,7 @@ import { subPoint } from '../lib/engine'
 import type { Site } from '../lib/types'
 
 /** Same lat/lon → xyz mapping three.js uses for equirectangular textures on SphereGeometry. */
-export function latLonToVec(lat: number, lon: number, r = 1): THREE.Vector3 {
+function latLonToVec(lat: number, lon: number, r = 1): THREE.Vector3 {
   const phi = (90 - lat) * (Math.PI / 180)
   const theta = (lon + 180) * (Math.PI / 180)
   return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta))
@@ -54,7 +54,7 @@ function makeProceduralMoon(): THREE.CanvasTexture {
 }
 
 function useMoonTexture() {
-  const procedural = useMemo(makeProceduralMoon, [])
+  const procedural = useMemo(() => makeProceduralMoon(), [])
   const [tex, setTex] = useState<THREE.Texture>(procedural)
   useEffect(() => {
     new THREE.TextureLoader().load(
