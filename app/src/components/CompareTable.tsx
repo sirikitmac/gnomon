@@ -23,14 +23,16 @@ function NowCell({ ds, flags, idx, color, setWord, riseWord }: { ds: Dataset; fl
   )
 }
 
-export default function CompareTable({ ds, mission, cursor, selectedId, onSelect }: {
+export default function CompareTable({ ds, mission, ids, cursor, selectedId, onSelect }: {
   ds: Dataset
   mission: Mission
+  /** Sites to show; all when omitted. */
+  ids?: string[]
   cursor: number
   selectedId: string
   onSelect: (id: string) => void
 }) {
-  const rows = compareSites(ds, mission)
+  const rows = compareSites(ds, mission, ids)
 
   return (
     <div className="-mx-4 overflow-x-auto px-4">

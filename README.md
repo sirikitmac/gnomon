@@ -48,6 +48,14 @@ cp dems.example.json dems.json   # then list your downloaded DEMs per site
 python build_dataset.py --start 2026-12-01 --stop 2027-03-01
 ```
 
+**Extra sites:** `pipeline/sites.json` marks the six default sites `"group": "original"` and extra ones `"group": "added"`. Extra sites appear under *More sites* in the sidebar and can be added to the Compare page with *Add site*. To build only new sites into the existing dataset (same start and step, other sites kept):
+
+```
+python build_dataset.py --start 2026-11-01 --stop 2029-01-01 --step 2h --only shackleton-ridge,nobile-rim-2,change-4 --merge
+```
+
+How it works:
+
 1. **Sun/Earth positions:** JPL Horizons API (no key needed), hourly, per site. Cached in `pipeline/raw/`.
 2. **Terrain skyline:** from LOLA DEM GeoTIFFs (PGDA 5 m site DEMs + a wider LOLA polar mosaic for distant ridges). 360 bins, lunar curvature included.
 3. **Visibility:** body centre elevation > skyline at its azimuth.

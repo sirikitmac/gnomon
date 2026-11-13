@@ -17,6 +17,8 @@ export interface Site {
   source: string
   terrain: string
   confidence: string
+  /** "original": one of the 6 default sites; "added": an extra site, off the Compare list until added. Missing = original. */
+  group?: 'original' | 'added'
   skyline: number[]
   series: Series
 }

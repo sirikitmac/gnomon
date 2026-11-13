@@ -8,6 +8,7 @@ import SiteBrief from './components/SiteBrief'
 import SitePicker from './components/SitePicker'
 import SummaryStrip from './components/SummaryStrip'
 import Timeline from './components/Timeline'
+import CompareSites from './components/CompareSites'
 import CompareTable from './components/CompareTable'
 import LaunchCalendar from './components/LaunchCalendar'
 import LearnTour from './components/LearnTour'
@@ -18,7 +19,7 @@ import SkyView from './components/SkyView'
 import Toast from './components/Toast'
 import ViewTabs from './components/ViewTabs'
 import { TARGET_VIEW, viewFromHash, type View } from './lib/views'
-import { compareSites } from './lib/compare'
+import { compareSites, loadCompareIds, saveCompareIds } from './lib/compare'
 import { analyze, bestLanding, clampIdx, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
 import { copyText } from './lib/dom'
 import { checkPreset, PRESETS, resolvePreset, type Preset } from './lib/presets'
@@ -90,6 +91,7 @@ export default function App() {
   const [siteId, setSiteId] = useState('malapert')
   const [mission, setMission] = useState<Mission>({ startIdx: 0, durationH: 24 * 10, needComms: true, slipDays: 0 })
   const [cursor, setCursor] = useState(0)
+  const [pickedCompare, setPickedCompare] = useState<string[] | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [planOn, setPlanOn] = useState(false)
   const [scenario, setScenario] = useState<Preset | null>(null)
@@ -156,6 +158,9 @@ export default function App() {
   }
 
   const site = useMemo(() => ds?.sites.find((s) => s.id === siteId) ?? ds?.sites[0], [ds, siteId])
+  // Sites on the Compare page: the viewer's own pick, kept in this browser; the original 6 by default.
+  const compareIds = useMemo(() => pickedCompare ?? (ds ? loadCompareIds(ds) : []), [pickedCompare, ds])
+  const setCompareIds = (ids: string[]) => { setPickedCompare(ids); saveCompareIds(ids) }
   const a = useMemo(() => (ds && site ? analyze(ds, site, mission.startIdx, mission) : null), [ds, site, mission])
   const slipped = useMemo(
     () => (ds && site && mission.slipDays > 0 ? analyze(ds, site, mission.startIdx + (mission.slipDays * 24) / ds.meta.stepHours, mission) : null),
@@ -175,7 +180,7 @@ export default function App() {
 
   const reportInput = () => {
     if (!ds || !site || !a) return null
-    return { ds, site, mission, sunMode, a, slipped, rows: compareSites(ds, mission), link: shareLink, generatedAt: new Date(), name: `rocky-${site.id}-${idxDay(ds, mission.startIdx)}` }
+    return { ds, site, mission, sunMode, a, slipped, rows: compareSites(ds, mission, compareIds), link: shareLink, generatedAt: new Date(), name: `rocky-${site.id}-${idxDay(ds, mission.startIdx)}` }
   }
 
   const isDark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
@@ -367,9 +372,10 @@ export default function App() {
 
           {view === 'compare' && (
             <>
-              <PageHead title="Compare sites" text="Every site with the same landing date and mission settings. Click a row to make it your site." />
-              <Panel id="all-sites" title="All sites">
-                <CompareTable ds={ds} mission={mission} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
+              <PageHead title="Compare sites" text="Your chosen sites with the same landing date and mission settings. Add or remove sites below; click a row to make it your site." />
+              <Panel id="all-sites" title="Sites">
+                <CompareSites sites={ds.sites} ids={compareIds} onChange={setCompareIds} />
+                <CompareTable ds={ds} mission={mission} ids={compareIds} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
               </Panel>
               <Panel id="planner" title="Plan it for me" hint="Best site and landing date for your mission settings">
                 <PlanPanel
