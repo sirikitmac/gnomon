@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { subPoint } from '../lib/engine'
-import { SOUTH_POLE_FEATURES } from '../data/features'
 import type { Site } from '../lib/types'
 
 /** Same lat/lon → xyz mapping three.js uses for equirectangular textures on SphereGeometry. */
@@ -101,8 +100,35 @@ interface SceneProps extends Props {
   els: React.MutableRefObject<Map<string, HTMLDivElement>>
 }
 
-// Only label features big enough to read at this zoom, plus every mountain.
-const LABELLED = SOUTH_POLE_FEATURES.filter((f) => f.diameterKm >= 15 || f.type === 'Mons')
+/** One named feature from the IAU Gazetteer (public/data/moon_features.json). */
+export interface MoonFeature {
+  name: string
+  lat: number
+  lon: number
+  diameterKm: number
+  type: string
+  origin: string
+}
+
+let featureCache: Promise<MoonFeature[]> | null = null
+function loadFeatures(): Promise<MoonFeature[]> {
+  featureCache ??= fetch('/data/moon_features.json')
+    .then((r) => r.json())
+    .then((d: { features: [string, number, number, number, string, string][] }) =>
+      d.features.map(([name, lat, lon, diameterKm, type, origin]) => ({ name, lat, lon, diameterKm, type, origin })))
+    .catch(() => { featureCache = null; return [] })
+  return featureCache
+}
+
+/** Loads the feature list the first time names are switched on. */
+function useMoonFeatures(enabled: boolean) {
+  const [list, setList] = useState<MoonFeature[]>([])
+  useEffect(() => { if (enabled && list.length === 0) loadFeatures().then(setList) }, [enabled, list.length])
+  return enabled ? list : []
+}
+
+// Point-like features (named landing sites) get a nominal size so they still show when zoomed in.
+const labelSizeKm = (f: MoonFeature) => (f.type === 'Statio' ? 60 : f.type === 'Mare' || f.type === 'Oceanus' ? Math.max(f.diameterKm, 300) : f.diameterKm)
 
 interface LabelSpec {
   key: string
@@ -110,6 +136,7 @@ interface LabelSpec {
   kind: 'feature' | 'site' | 'active'
   text: string
   priority: number
+  sizeKm?: number
   onClick?: () => void
 }
 
@@ -120,21 +147,39 @@ function LabelLayout({ specs, els }: { specs: LabelSpec[]; els: React.MutableRef
   const { camera, size } = useThree()
   const tmp = useMemo(() => new THREE.Vector3(), [])
   const order = useMemo(() => [...specs].sort((a, b) => b.priority - a.priority), [specs])
+  const last = useRef({ m: new Float32Array(16), w: 0, h: 0, specs: specs as LabelSpec[] | null })
+  const written = useRef(new Map<string, string>())
   useFrame(() => {
+    // Skip the whole pass when neither the camera, the canvas size nor the labels changed.
+    const L = last.current
+    const m = camera.matrixWorld.elements
+    let same = L.specs === specs && L.w === size.width && L.h === size.height
+    for (let i = 0; same && i < 16; i++) same = Math.abs(L.m[i] - m[i]) < 1e-7
+    if (same) return
+    L.m.set(m); L.w = size.width; L.h = size.height; L.specs = specs
+
     const placed: [number, number, number, number][] = []
     for (const sp of order) {
       const el = els.current.get(sp.key)
       if (!el) continue
       const facing = tmp.copy(camera.position).sub(sp.pos).normalize().dot(sp.pos.clone().normalize())
       const dist = camera.position.distanceTo(sp.pos)
-      const maxDist = sp.kind === 'feature' ? 0.95 : 3.2
-      let o = facing < 0.08 || dist > maxDist ? 0 : Math.min(1, (facing - 0.08) * 6) * Math.min(1, (maxDist - dist) * 4)
-      const p = tmp.copy(sp.pos).project(camera)
-      const x = (p.x * 0.5 + 0.5) * size.width
-      const y = (-p.y * 0.5 + 0.5) * size.height
+      let o: number
+      if (sp.kind === 'feature') {
+        // Show a name once its feature would look big enough on screen at this distance.
+        const apparent = ((sp.sizeKm ?? 0) / 1737.4) / dist
+        o = facing < 0.15 ? 0 : Math.min(1, (facing - 0.15) * 5) * Math.min(1, Math.max(0, (apparent - 0.03) / 0.015))
+      } else {
+        const maxDist = 3.2
+        o = facing < 0.08 || dist > maxDist ? 0 : Math.min(1, (facing - 0.08) * 6) * Math.min(1, (maxDist - dist) * 4)
+      }
+      let x = -9999, y = -9999
       let dx = 0
       let dy = sp.kind === 'feature' ? 0 : -16
       if (o > 0) {
+        const p = tmp.copy(sp.pos).project(camera)
+        x = (p.x * 0.5 + 0.5) * size.width
+        y = (-p.y * 0.5 + 0.5) * size.height
         const w = sp.text.length * (sp.kind === 'feature' ? 5.6 : 6.8) + (sp.kind === 'feature' ? 6 : 22)
         const h = sp.kind === 'feature' ? 14 : 22
         // Sites may sit above, below, right or left of their dot; features only on their spot.
@@ -149,29 +194,50 @@ function LabelLayout({ specs, els }: { specs: LabelSpec[]; els: React.MutableRef
           placed.push([x + dx - w / 2, y + dy - h / 2, x + dx + w / 2, y + dy + h / 2])
         }
       }
-      el.style.transform = `translate(${x + dx}px, ${y + dy}px) translate(-50%, -50%)`
-      el.style.opacity = String(o)
-      el.style.pointerEvents = o > 0.3 && sp.onClick ? 'auto' : 'none'
+      // Only touch the DOM when something actually changed for this label.
+      const key = o === 0 ? '0' : `${Math.round(x + dx)},${Math.round(y + dy)},${o.toFixed(2)}`
+      if (written.current.get(sp.key) === key) continue
+      written.current.set(sp.key, key)
+      if (o === 0) {
+        el.style.opacity = '0'
+        el.style.pointerEvents = 'none'
+      } else {
+        el.style.transform = `translate(${x + dx}px, ${y + dy}px) translate(-50%, -50%)`
+        el.style.opacity = String(o)
+        el.style.pointerEvents = o > 0.3 && sp.onClick ? 'auto' : 'none'
+      }
     }
   })
   return null
 }
 
-function useLabelSpecs(site: Site, sites: Site[], showFeatures: boolean, onSelect: (id: string) => void) {
+function useLabelSpecs(site: Site, sites: Site[], features: MoonFeature[], onSelect: (id: string) => void, onFeature: (f: MoonFeature) => void) {
   return useMemo<LabelSpec[]>(() => [
-    ...(showFeatures ? LABELLED : []).filter((f) => !sites.some((x) => shortName(x) === f.name)).map((f) => ({
-      key: 'f-' + f.name, pos: latLonToVec(f.lat, f.lon, 1.002), kind: 'feature' as const, text: f.name,
-      priority: (f.type === 'Mons' ? 500 : 0) + f.diameterKm,
+    ...features.filter((f) => !sites.some((x) => shortName(x) === f.name)).map((f) => ({
+      key: 'f-' + f.name + '@' + f.lat + ',' + f.lon,
+      pos: latLonToVec(f.lat, f.lon, 1.002),
+      kind: 'feature' as const,
+      text: f.name,
+      sizeKm: labelSizeKm(f),
+      priority: labelSizeKm(f) + (f.type === 'Mons' ? 40 : 0),
+      onClick: () => onFeature(f),
     })),
     ...sites.map((x) => ({
       key: 's-' + x.id,
       pos: latLonToVec(x.lat, x.lonEast, 1.003),
       kind: x.id === site.id ? ('active' as const) : ('site' as const),
       text: shortName(x),
-      priority: x.id === site.id ? 10000 : 5000,
+      priority: x.id === site.id ? 100000 : 50000,
       onClick: x.id === site.id ? undefined : () => onSelect(x.id),
     })),
-  ], [sites, site.id, onSelect, showFeatures])
+  ], [sites, site.id, onSelect, features, onFeature])
+}
+
+const FEATURE_TYPE: Record<string, string> = {
+  Crater: 'Crater', Mare: 'Mare (lunar sea)', Oceanus: 'Oceanus (ocean)', Mons: 'Mountain', Rima: 'Rille (channel)',
+  Dorsum: 'Wrinkle ridge', Vallis: 'Valley', Catena: 'Crater chain', Lacus: 'Lacus (lake)', Sinus: 'Sinus (bay)',
+  Palus: 'Palus (marsh)', Promontorium: 'Cape', Rupes: 'Scarp (cliff)', Fossa: 'Trench', Planitia: 'Plain',
+  Statio: 'Named landing site', 'Astronaut-named features': 'Astronaut-named feature', 'Albedo Feature': 'Bright/dark marking',
 }
 
 const shortName = (x: Site) => x.name.replace(/\s*\(.*\)\s*/, '')
@@ -312,7 +378,9 @@ export default function MoonScene(props: Props) {
   const [view, setView] = useState<{ kind: ViewKind; n: number }>({ kind: 'site', n: 0 })
   const go = (kind: ViewKind) => setView((v) => ({ kind, n: v.n + 1 }))
   const [showFeatures, setShowFeatures] = useState(false)
-  const specs = useLabelSpecs(props.site, props.sites, showFeatures, props.onSelect)
+  const [picked, setPicked] = useState<MoonFeature | null>(null)
+  const features = useMoonFeatures(showFeatures)
+  const specs = useLabelSpecs(props.site, props.sites, features, props.onSelect, setPicked)
   const els = useRef(new Map<string, HTMLDivElement>())
   return (
     <div className="relative h-full w-full">
@@ -329,7 +397,7 @@ export default function MoonScene(props: Props) {
             className={
               'absolute left-0 top-0 ' +
               (sp.kind === 'feature'
-                ? 'select-none whitespace-nowrap text-[10px] tracking-wide text-[#c9d1e0]/80 [text-shadow:0_1px_2px_#000]'
+                ? 'cursor-pointer select-none whitespace-nowrap text-[10px] tracking-wide text-[#c9d1e0]/85 [text-shadow:0_1px_2px_#000] transition-colors duration-150 hover:text-white'
                 : `select-none whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium shadow transition-colors duration-150 ${
                     sp.kind === 'active' ? 'z-20 bg-[#3ddc97] text-[#04140d]' : 'z-10 cursor-pointer bg-[#0f1626]/85 text-[#e5e9f1] ring-1 ring-white/15 hover:bg-[#1d2a44]'
                   }`)
@@ -340,18 +408,42 @@ export default function MoonScene(props: Props) {
           </div>
         ))}
       </div>
+      {picked && (
+        <div className="absolute left-3 top-3 z-30 w-[min(300px,calc(100%-24px))] rounded-[12px] bg-[#16161a]/85 p-3.5 text-[#f5f5f7] shadow-[0_0_0_0.5px_rgba(255,255,255,0.12),0_12px_32px_-8px_rgba(0,0,0,0.7)] backdrop-blur-xl" role="dialog" aria-label={picked.name}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[15px] font-semibold leading-tight">{picked.name}</div>
+              <div className="mt-0.5 text-xs text-[#a1a1a6]">{FEATURE_TYPE[picked.type] ?? picked.type}</div>
+            </div>
+            <button type="button" onClick={() => setPicked(null)} aria-label="Close details" className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-md text-[#a1a1a6] hover:bg-white/10 hover:text-white">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 2l8 8M10 2L2 10" /></svg>
+            </button>
+          </div>
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+            {picked.diameterKm > 0 && (<><dt className="text-[#a1a1a6]">Diameter</dt><dd className="tabular">{picked.diameterKm.toLocaleString('en-US', { maximumFractionDigits: 1 })} km</dd></>)}
+            <dt className="text-[#a1a1a6]">Location</dt>
+            <dd className="tabular">{Math.abs(picked.lat).toFixed(2)}°{picked.lat < 0 ? 'S' : 'N'}, {Math.abs(picked.lon).toFixed(2)}°{picked.lon < 0 ? 'W' : 'E'}</dd>
+          </dl>
+          {picked.origin && (
+            <p className="mt-2.5 border-t border-white/10 pt-2.5 text-xs leading-relaxed text-[#d1d1d6]">
+              <span className="text-[#a1a1a6]">Named after: </span>{picked.origin}
+            </p>
+          )}
+          <p className="mt-2 text-[10px] text-[#8e8e93]">Source: IAU Gazetteer of Planetary Nomenclature (USGS)</p>
+        </div>
+      )}
       <div className="pointer-events-none absolute right-3 top-3 flex flex-wrap items-center justify-end gap-2">
         <span className="hidden rounded-md bg-[#0f1626]/70 px-2 py-1 text-[11px] text-[#a2adc2] backdrop-blur xl:inline">Drag to rotate, scroll to zoom</span>
         <button
           type="button"
           aria-pressed={showFeatures}
-          onClick={() => setShowFeatures((v) => !v)}
-          title="Official crater and mountain names from the IAU Gazetteer (USGS)"
+          onClick={() => { setShowFeatures((v) => !v); setPicked(null) }}
+          title="Official names of craters, seas, mountains and valleys from the IAU Gazetteer (USGS). Zoom in to see more; click a name for details."
           className={`pointer-events-auto rounded-md px-2.5 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
             showFeatures ? 'bg-[#e5e9f1] text-[#0f1626] ring-transparent' : 'bg-[#0f1626]/80 text-[#e5e9f1] ring-white/15 hover:bg-[#1d2a44]'
           }`}
         >
-          Crater names
+          Moon names
         </button>
         {([['north', 'North pole', 'Look straight down on the north pole'], ['south', 'South pole', 'Look straight down on the south pole'], ['site', 'Recenter', 'Fly back to the selected site']] as const).map(([kind, label, title]) => (
           <button
