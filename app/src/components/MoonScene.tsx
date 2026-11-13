@@ -262,7 +262,7 @@ function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
     <>
       <color attach="background" args={['#05070c']} />
       <Stars radius={60} depth={30} count={2500} factor={2.2} fade speed={0.3} />
-      <ambientLight intensity={0.1} />
+      <ambientLight intensity={0.16} />
       <directionalLight ref={sunRef} intensity={3.2} color="#fff4e0" position={sunDir} />
       <mesh>
         <sphereGeometry args={[1, 128, 128]} />

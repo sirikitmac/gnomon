@@ -3,9 +3,9 @@ import { analyze, fmtDate, fmtHours, hoursUntilChange, idxToDate } from '../lib/
 import type { Analysis, Dataset, Mission, Site, Verdict } from '../lib/types'
 
 const vPill: Record<Verdict, string> = {
-  GO: 'bg-both/15 text-both',
-  RISKY: 'bg-risk/15 text-risk',
-  'NO-GO': 'bg-nogo/15 text-nogo',
+  GO: 'bg-both/15 text-both-ink',
+  RISKY: 'bg-risk/15 text-risk-ink',
+  'NO-GO': 'bg-nogo/15 text-nogo-ink',
 }
 const vRank: Record<Verdict, number> = { GO: 0, RISKY: 1, 'NO-GO': 2 }
 
@@ -79,7 +79,7 @@ export default function CompareTable({ ds, mission, cursor, selectedId, onSelect
                 aria-selected={active}
                 className={`cursor-pointer transition-colors duration-150 ${active ? 'bg-surface-2' : 'hover:bg-surface-2/60'}`}
               >
-                <td className={`rounded-l-lg border-t border-line py-3 pl-3 pr-4 ${active ? 'shadow-[inset_3px_0_0_var(--earth)]' : ''}`}>
+                <td className={`rounded-l-lg border-t border-line py-3 pl-3 pr-4 ${active ? 'shadow-[inset_3px_0_0_var(--accent)]' : ''}`}>
                   <div className="font-medium">{site.name}</div>
                   <div className="text-xs text-ink-3">{site.role}</div>
                 </td>

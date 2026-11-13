@@ -95,7 +95,7 @@ export default function Menu({ open, onClose, theme, setTheme, ds }: {
                   <li>Your mission window is checked hour by hour. GO needs at least 75% coverage and no blackout longer than 24 hours. RISKY needs 45% and 96 hours.</li>
                 </ol>
                 {ds?.meta.mock && (
-                  <p className="mt-3 rounded-lg border border-risk/40 bg-risk/10 p-3 text-risk">
+                  <p className="mt-3 rounded-lg border border-risk/40 bg-risk/10 p-3 text-risk-ink">
                     You're viewing mock data: simplified orbits and synthetic terrain, for building the interface. Results aren't real until the NASA pipeline runs.
                   </p>
                 )}
@@ -105,7 +105,7 @@ export default function Menu({ open, onClose, theme, setTheme, ds }: {
                 <ul className="space-y-3">
                   {REFS.map((r) => (
                     <li key={r.url + r.title}>
-                      <a href={r.url} target="_blank" rel="noreferrer" className="font-medium text-earth hover:underline">{r.title}</a>
+                      <a href={r.url} target="_blank" rel="noreferrer" className="font-medium text-earth-ink hover:underline">{r.title}</a>
                       <p className="text-ink-3">{r.note}</p>
                     </li>
                   ))}

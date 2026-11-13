@@ -88,7 +88,7 @@ export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, 
       <label className="flex flex-col gap-1.5">
         <span className="flex justify-between text-xs text-ink-3">
           <span>Slip Test: delay the landing by</span>
-          <span className="tabular text-risk">+{mission.slipDays} d</span>
+          <span className="tabular text-risk-ink">+{mission.slipDays} d</span>
         </span>
         <input type="range" min={0} max={14} value={mission.slipDays} onChange={(e) => onChange({ ...mission, slipDays: +e.target.value })} className="[accent-color:var(--color-risk)]" />
       </label>

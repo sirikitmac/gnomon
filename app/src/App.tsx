@@ -80,7 +80,7 @@ export default function App() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           {ds?.meta.mock && (
-            <button onClick={() => setMenuOpen(true)} className="rounded-full border border-risk/40 bg-risk/10 px-3 py-1 text-xs text-risk" title={ds.meta.notes}>
+            <button onClick={() => setMenuOpen(true)} className="rounded-full border border-risk/40 bg-risk/10 px-3 py-1 text-xs text-risk-ink" title={ds.meta.notes}>
               Mock data
             </button>
           )}
@@ -102,7 +102,7 @@ export default function App() {
 
   let body: React.ReactNode
   if (error) {
-    body = <p className="p-8 text-nogo">Couldn't load app/public/data/sites.json ({error}). Run <code>python pipeline/generate_mock.py</code> and reload.</p>
+    body = <p className="p-8 text-nogo-ink">Couldn't load app/public/data/sites.json ({error}). Run <code>python pipeline/generate_mock.py</code> and reload.</p>
   } else if (!ds || !site || !a) {
     body = <p className="grid h-[60vh] place-items-center text-ink-3">Loading mission data…</p>
   } else {

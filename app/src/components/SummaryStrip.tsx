@@ -7,12 +7,12 @@ const vStyle: Record<Verdict, string> = {
   RISKY: 'bg-risk text-white dark:text-bg',
   'NO-GO': 'bg-nogo text-white dark:text-bg',
 }
-const vText: Record<Verdict, string> = { GO: 'text-both', RISKY: 'text-risk', 'NO-GO': 'text-nogo' }
+const vText: Record<Verdict, string> = { GO: 'text-both-ink', RISKY: 'text-risk-ink', 'NO-GO': 'text-nogo-ink' }
 
 function Delta({ v, unit = '%', invert = false }: { v: number; unit?: string; invert?: boolean }) {
   if (Math.abs(v) < 0.5) return <span className="text-ink-3">no change</span>
   const good = invert ? v < 0 : v > 0
-  return <span className={good ? 'text-both' : 'text-nogo'}>{v > 0 ? '+' : '−'}{Math.round(Math.abs(v))}{unit === 'h' ? ' h' : unit}</span>
+  return <span className={good ? 'text-both-ink' : 'text-nogo-ink'}>{v > 0 ? '+' : '−'}{Math.round(Math.abs(v))}{unit === 'h' ? ' h' : unit}</span>
 }
 
 function Stat({ label, value, bar, color, delta }: { label: string; value: string; bar?: number; color?: string; delta?: React.ReactNode }) {
@@ -56,7 +56,7 @@ export default function SummaryStrip({ ds, a, slipped, slipDays, needComms }: { 
               </div>
             </>
           ) : (
-            <div className="mt-0.5 text-sm text-nogo">No window in the data range</div>
+            <div className="mt-0.5 text-sm text-nogo-ink">No window in the data range</div>
           )}
           {s && (
             <div className="mt-1.5 text-xs">
