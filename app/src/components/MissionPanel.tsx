@@ -63,7 +63,7 @@ export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, 
       >
         <span className="text-left">Needs direct-to-Earth comms</span>
         <span className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors duration-200 ${mission.needComms ? 'bg-both' : 'bg-line-strong'}`}>
-          <span className={`absolute top-[2px] h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.25),0_0_0_0.5px_rgba(0,0,0,0.04)] transition-transform duration-200 ease-out ${mission.needComms ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+          <span className={`absolute left-0 top-[2px] h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.25),0_0_0_0.5px_rgba(0,0,0,0.04)] transition-transform duration-200 ease-out ${mission.needComms ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
         </span>
       </button>
 

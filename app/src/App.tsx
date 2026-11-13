@@ -7,7 +7,7 @@ import Panorama from './components/Panorama'
 import SiteBrief from './components/SiteBrief'
 import SitePicker from './components/SitePicker'
 import SummaryStrip from './components/SummaryStrip'
-import Timeline, { TimelineAxis } from './components/Timeline'
+import Timeline from './components/Timeline'
 import CompareTable from './components/CompareTable'
 import { analyze, bestLanding, clampIdx, fmtHours, nowIdx, withSunMode } from './lib/engine'
 import { useTheme } from './lib/theme'
@@ -155,7 +155,6 @@ export default function App() {
 
           <Panel title="Timeline" hint="Drag to move the landing. Solid box: mission. Dashed box: delayed landing.">
             <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />
-            <TimelineAxis ds={ds} />
             <label className="mt-4 flex items-center gap-3 text-sm text-ink-2">
               <span className="shrink-0">Mission time</span>
               <input type="range" className="w-full" min={a.startIdx} max={a.endIdx - 1} value={cur} onChange={(e) => setCursor(+e.target.value)} />
