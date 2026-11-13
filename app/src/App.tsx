@@ -13,6 +13,7 @@ import LaunchCalendar from './components/LaunchCalendar'
 import PlanPanel from './components/PlanPanel'
 import Popover, { MenuItem } from './components/Popover'
 import ScenarioBanner from './components/ScenarioBanner'
+import SkyView from './components/SkyView'
 import Toast from './components/Toast'
 import { compareSites } from './lib/compare'
 import { analyze, bestLanding, clampIdx, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
@@ -290,6 +291,10 @@ export default function App() {
               <input type="range" className="w-full" min={a.startIdx} max={a.endIdx - 1} value={cur} onChange={(e) => setCursor(+e.target.value)} />
               <span className="w-24 shrink-0 text-right tabular">T+{fmtHours((cur - a.startIdx) * ds.meta.stepHours)}</span>
             </label>
+          </Panel>
+
+          <Panel id="sky-view" title="Sky view" hint="Standing at the site: the skyline, with the Sun and Earth at the mission time">
+            <SkyView ds={ds} site={site} a={a} cursor={cur} onCursor={setCursor} />
           </Panel>
 
           <Panel id="launch-calendar" title="Launch calendar" hint={`${site.name}: each day is a mission landing at 00:00 UTC with your current settings`}>
