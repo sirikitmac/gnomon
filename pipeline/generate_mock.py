@@ -5,8 +5,11 @@ rotation, approximate libration), and skylines are synthetic. The shape of the
 output matches what build_dataset.py writes from real NASA data, so the
 frontend can be built against it. Do not present these numbers as real results.
 
-Usage:  python generate_mock.py  ->  ../app/public/data/sites.json
+Usage:
+  python generate_mock.py            ->  ../app/public/data/sites.mock.json (safe default)
+  python generate_mock.py --replace  ->  overwrite ../app/public/data/sites.json (destroys real data!)
 """
+import argparse
 import json
 import math
 import random
@@ -16,7 +19,7 @@ from pathlib import Path
 from geometry import local_az_el, visible
 
 HERE = Path(__file__).parent
-OUT = HERE.parent / "app" / "public" / "data" / "sites.json"
+DATA_DIR = HERE.parent / "app" / "public" / "data"
 
 START = datetime(2026, 12, 1, tzinfo=timezone.utc)
 DAYS = 90
@@ -70,6 +73,10 @@ def synthetic_skyline(kind, seed):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--replace", action="store_true", help="overwrite the real sites.json with mock data")
+    args = ap.parse_args()
+    OUT = DATA_DIR / ("sites.json" if args.replace else "sites.mock.json")
     sites = json.loads((HERE / "sites.json").read_text(encoding="utf-8"))["sites"]
     times = [START + timedelta(hours=h) for h in range(0, DAYS * 24, STEP_H)]
     out_sites = []

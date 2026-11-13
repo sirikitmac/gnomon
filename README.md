@@ -22,7 +22,7 @@ npm install
 npm run dev
 ```
 
-It reads `app/public/data/sites.json`. The repo ships **mock data** (a banner says so in the UI).
+It reads `app/public/data/sites.json`, which now holds **real NASA-derived data** (Dec 2026 – Mar 2027).
 
 **Real Moon texture (optional):** download the color map from the NASA SVS *CGI Moon Kit* (`lroc_color_poles_2k.tif` or similar), convert to JPG, and save as `app/public/textures/moon_color.jpg`. Without it the app draws a procedural Moon.
 
@@ -32,10 +32,10 @@ It reads `app/public/data/sites.json`. The repo ships **mock data** (a banner sa
 
 ```bash
 cd pipeline
-python generate_mock.py
+python generate_mock.py            # writes app/public/data/sites.mock.json
 ```
 
-Simplified orbital geometry + synthetic terrain. Same JSON shape as the real data. **Don't present mock numbers as results.**
+It writes to `sites.mock.json`, so it never touches the real data. Use `--replace` only if you really want the app to load mock data. Simplified orbital geometry + synthetic terrain. Same JSON shape as the real data. **Don't present mock numbers as results.**
 
 ### Real NASA data
 
