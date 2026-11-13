@@ -4,6 +4,7 @@ import ElevationChart from './components/ElevationChart'
 import Menu from './components/Menu'
 import MissionAdvice from './components/MissionAdvice'
 import MissionPanel from './components/MissionPanel'
+import NewMission, { type NewMissionInput } from './components/NewMission'
 import Panorama from './components/Panorama'
 import SiteBrief from './components/SiteBrief'
 import SitePicker from './components/SitePicker'
@@ -22,11 +23,12 @@ import ViewTabs from './components/ViewTabs'
 import { TARGET_VIEW, viewFromHash, type View } from './lib/views'
 import { missionAdvice } from './lib/advice'
 import { compareSites, loadCompareIds, saveCompareIds } from './lib/compare'
-import { analyze, bestLanding, clampIdx, fmtDate, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
+import { analyze, bestLanding, clampIdx, dateToIdx, fmtDate, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
 import { copyText } from './lib/dom'
 import { checkPreset, PRESETS, resolvePreset, type Preset } from './lib/presets'
 import { buildCsv, buildReportHtml, downloadText, openReport } from './lib/report'
-import { decodePlan, encodePlan } from './lib/urlState'
+import { decodeName, decodePlan, encodePlan } from './lib/urlState'
+import { loadMissions, newMissionId, saveMissions, type SavedMission } from './lib/missions'
 import { useTheme } from './lib/theme'
 import type { Dataset, Mission, PlanState, SunMode } from './lib/types'
 
@@ -100,6 +102,13 @@ export default function App() {
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [urlReady, setUrlReady] = useState(false)
   const [learnOn, setLearnOn] = useState(false)
+  // Named missions: the open one (id null = opened from a shared link, not saved here yet) and the saved list.
+  const [active, setActive] = useState<{ id: string | null; name: string } | null>(() => {
+    const n = decodeName(location.search)
+    return n ? { id: null, name: n } : null
+  })
+  const [missions, setMissions] = useState<SavedMission[]>(loadMissions)
+  const [newOpen, setNewOpen] = useState(false)
   const [moonMode, setMoonModeState] = useState<MoonMode>(readMoonMode)
   const setMoonMode = (m: MoonMode) => {
     setMoonModeState(m)
@@ -171,8 +180,62 @@ export default function App() {
 
   const advice = useMemo(() => (ds && site && a ? missionAdvice(ds, site, mission, a, slipped) : []), [ds, site, mission, a, slipped])
 
+  const putMissions = (f: (list: SavedMission[]) => SavedMission[]) => setMissions((list) => { const next = f(list); saveMissions(next); return next })
+  const snapshot = (id: string, name: string): SavedMission | null =>
+    ds && site ? { id, name, siteId: site.id, landing: idxToDate(ds, mission.startIdx).toISOString(), durationH: mission.durationH, needComms: mission.needComms, slipDays: mission.slipDays, sunMode, updated: Date.now() } : null
+  const createMission = (m: NewMissionInput) => {
+    if (!ds) return
+    const id = newMissionId()
+    setSiteId(m.siteId)
+    setMission((x) => ({ ...x, startIdx: m.startIdx, durationH: m.durationH, needComms: m.needComms }))
+    setCursor(m.startIdx)
+    setActive({ id, name: m.name })
+    putMissions((list) => [{ id, name: m.name, siteId: m.siteId, landing: idxToDate(ds, m.startIdx).toISOString(), durationH: m.durationH, needComms: m.needComms, slipDays: mission.slipDays, sunMode, updated: Date.now() }, ...list])
+    setNewOpen(false)
+    setView('mission')
+    notify(`Mission "${m.name}" created`)
+  }
+  const openMission = (m: SavedMission) => {
+    if (!ds) return
+    const t = Date.parse(m.landing)
+    const startIdx = clampIdx(ds, Number.isNaN(t) ? mission.startIdx : dateToIdx(ds, new Date(t)))
+    applyPlan({ siteId: ds.sites.some((x) => x.id === m.siteId) ? m.siteId : ds.sites[0].id, startIdx, durationH: m.durationH, needComms: m.needComms, slipDays: m.slipDays, sunMode: m.sunMode })
+    setActive({ id: m.id, name: m.name })
+    setNewOpen(false)
+    setView('mission')
+  }
+  const removeMission = (id: string) => {
+    putMissions((list) => list.filter((m) => m.id !== id))
+    if (active?.id === id) setActive(null)
+  }
+  const saveShared = () => {
+    if (!active) return
+    const id = newMissionId()
+    const snap = snapshot(id, active.name)
+    if (!snap) return
+    putMissions((list) => [snap, ...list])
+    setActive({ id, name: active.name })
+    notify(`Saved "${active.name}" to your missions`)
+  }
+  // An open saved mission keeps itself up to date as the plan changes.
+  const activeId = active?.id ?? null
+  const landingIso = ds ? idxToDate(ds, mission.startIdx).toISOString() : ''
+  useEffect(() => {
+    if (!activeId || !site) return
+    setMissions((list) => {
+      const i = list.findIndex((m) => m.id === activeId)
+      if (i < 0) return list
+      const m = list[i]
+      if (m.siteId === site.id && m.landing === landingIso && m.durationH === mission.durationH && m.needComms === mission.needComms && m.slipDays === mission.slipDays && m.sunMode === sunMode) return list
+      const next = [...list]
+      next[i] = { ...m, siteId: site.id, landing: landingIso, durationH: mission.durationH, needComms: mission.needComms, slipDays: mission.slipDays, sunMode, updated: Date.now() }
+      saveMissions(next)
+      return next
+    })
+  }, [activeId, site, landingIso, mission.durationH, mission.needComms, mission.slipDays, sunMode])
+
   // Keep the address bar in sync with the plan (replaceState, debounced: no history entries, no reloads).
-  const shareQuery = ds && site ? encodePlan(ds, { siteId: site.id, ...mission, sunMode }) : null
+  const shareQuery = ds && site ? encodePlan(ds, { siteId: site.id, ...mission, sunMode }, active?.name) : null
   useEffect(() => {
     if (!urlReady || !shareQuery) return
     const t = setTimeout(() => {
@@ -184,7 +247,7 @@ export default function App() {
 
   const reportInput = () => {
     if (!ds || !site || !a) return null
-    return { ds, site, mission, sunMode, a, slipped, rows: compareSites(ds, mission, compareIds), link: shareLink, generatedAt: new Date(), name: `rocky-${site.id}-${idxDay(ds, mission.startIdx)}` }
+    return { ds, site, mission, sunMode, a, slipped, rows: compareSites(ds, mission, compareIds), link: shareLink, generatedAt: new Date(), missionName: active?.name, name: `rocky-${active ? active.name.replace(/[^\w-]+/g, '-').toLowerCase() + '-' : ''}${site.id}-${idxDay(ds, mission.startIdx)}` }
   }
 
   const isDark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
@@ -201,6 +264,16 @@ export default function App() {
         </div>
         <ViewTabs value={view} onChange={setView} className="mx-auto hidden w-[440px] lg:block" />
         <div className="ml-auto flex items-center gap-1 sm:gap-2 lg:ml-0">
+          <button
+            onClick={() => setNewOpen(true)}
+            disabled={!ds}
+            title="Name a mission, pick its site and dates, and open it on the dashboard. Your saved missions are here too."
+            className="flex h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.96] disabled:opacity-40 sm:px-2.5"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden><path d="M9 3.5v11M3.5 9h11" /></svg>
+            <span className="hidden md:inline">{missions.length ? 'Missions' : 'New mission'}</span>
+            <span className="sr-only md:hidden">{missions.length ? 'Missions' : 'New mission'}</span>
+          </button>
           <button
             id="learn-button"
             onClick={() => setLearnOn((v) => !v)}
@@ -343,6 +416,25 @@ export default function App() {
 
           {view === 'mission' && (
             <>
+              {active && (
+                <div className="flex flex-wrap items-end justify-between gap-3 px-1 pt-1">
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-ink-3">Mission</div>
+                    <h1 className="truncate font-display text-[22px] font-semibold tracking-tight">{active.name}</h1>
+                    <p className="text-sm text-ink-2 tabular">
+                      {site.name} · lands {fmtDate(idxToDate(ds, mission.startIdx))} · {fmtHours(mission.durationH)}{mission.needComms ? ' · needs Earth contact' : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {active.id ? (
+                      <span className="text-xs text-ink-3">Saved in this browser</span>
+                    ) : (
+                      <button type="button" onClick={saveShared} className="h-8 rounded-md bg-accent px-3 text-xs font-medium text-white shadow-control active:scale-[0.97]">Save to my missions</button>
+                    )}
+                    <button type="button" onClick={() => setActive(null)} title="Stop working on this mission; the plan stays as it is" className="h-8 rounded-md px-3 text-xs font-medium text-ink ring-1 ring-inset ring-line transition-colors duration-150 hover:bg-surface-2">Close mission</button>
+                  </div>
+                </div>
+              )}
               <div id="verdict" className="scroll-mt-20">
                 <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} />
               </div>
@@ -441,6 +533,18 @@ export default function App() {
       {body}
       <Toast message={toast} onDone={clearToast} />
       <LearnTour open={learnOn && !!ds} onClose={closeLearn} onNavigate={navigateToTarget} />
+      {ds && site && (
+        <NewMission
+          open={newOpen}
+          onClose={() => setNewOpen(false)}
+          ds={ds}
+          defaults={{ siteId: site.id, startIdx: mission.startIdx, durationH: mission.durationH, needComms: mission.needComms }}
+          missions={missions}
+          onCreate={createMission}
+          onOpen={openMission}
+          onRemove={removeMission}
+        />
+      )}
       <Menu open={menuOpen} onClose={() => setMenuOpen(false)} theme={theme} setTheme={setTheme} ds={ds} />
     </MotionConfig>
   )

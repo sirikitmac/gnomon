@@ -3,11 +3,12 @@ import type { Dataset, PlanState } from './types'
 
 /*
  * Share-link format (all optional, invalid values are ignored):
- *   ?site=malapert&t=2026-12-14T00:00Z&days=10&comms=1&slip=0&sun=centre
- * t is the landing time in UTC (snapped to the data step); sun is "centre" or "edge".
+ *   ?site=malapert&t=2026-12-14T00:00Z&days=10&comms=1&slip=0&sun=centre&name=Bayanihan-1
+ * t is the landing time in UTC (snapped to the data step); sun is "centre" or "edge";
+ * name is an optional mission name.
  */
 
-export function encodePlan(ds: Dataset, st: PlanState): string {
+export function encodePlan(ds: Dataset, st: PlanState, name?: string | null): string {
   const p = new URLSearchParams()
   p.set('site', st.siteId)
   p.set('t', idxToDate(ds, st.startIdx).toISOString().slice(0, 16) + 'Z')
@@ -15,6 +16,7 @@ export function encodePlan(ds: Dataset, st: PlanState): string {
   p.set('comms', st.needComms ? '1' : '0')
   p.set('slip', String(st.slipDays))
   p.set('sun', st.sunMode === 'firstLight' ? 'edge' : 'centre')
+  if (name) p.set('name', name)
   return p.toString()
 }
 
@@ -47,4 +49,11 @@ export function decodePlan(ds: Dataset, search: string): Partial<PlanState> {
   const sun = p.get('sun')
   if (sun === 'centre' || sun === 'edge') out.sunMode = sun === 'edge' ? 'firstLight' : 'centre'
   return out
+}
+
+/** Mission name from a share link, tidied; null when absent. */
+export function decodeName(search: string): string | null {
+  const v = new URLSearchParams(search).get('name')
+  const n = v ? v.replace(/\s+/g, ' ').trim().slice(0, 40) : ''
+  return n || null
 }

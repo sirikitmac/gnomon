@@ -12,6 +12,8 @@ export interface ReportInput {
   rows: CompareRow[]
   link: string
   generatedAt: Date
+  /** Optional mission name, shown as the report's title. */
+  missionName?: string | null
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
@@ -82,7 +84,7 @@ export function buildReportHtml(r: ReportInput): string {
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rocky mission report: ${esc(site.name)}, ${d(mission.startIdx)}</title>
+<title>${r.missionName ? esc(r.missionName) + ': ' : ''}Rocky mission report, ${esc(site.name)}, ${d(mission.startIdx)}</title>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
@@ -126,7 +128,7 @@ export function buildReportHtml(r: ReportInput): string {
 <div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
 <main class="page">
   <div class="head">
-    <div><h1>Rocky mission report</h1><div class="muted">Lunar Landing Site Navigator · NASA Space Apps 2026</div></div>
+    <div><h1>${r.missionName ? esc(r.missionName) : 'Rocky mission report'}</h1><div class="muted">${r.missionName ? 'Rocky mission report · ' : ''}Lunar Landing Site Navigator · NASA Space Apps 2026</div></div>
     <div class="muted">Generated ${esc(stamp(r.generatedAt))}</div>
   </div>
 
