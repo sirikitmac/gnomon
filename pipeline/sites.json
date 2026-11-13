@@ -1,5 +1,5 @@
 {
-  "_note": "Coordinates verified 2026-11-13 against the cited sources; see each site's source field. lonEast is degrees east (west negative).",
+  "_note": "Coordinates verified 2026-11-13 against the cited sources; see each site's source field. lonEast is degrees east (west negative). group \"original\" = the 6 default sites; \"added\" = extra sites, off the Compare list until added.",
   "sites": [
     {
       "id": "mons-mouton",
@@ -9,7 +9,8 @@
       "role": "Real mission",
       "story": "Where Intuitive Machines' IM-2 Athena touched down and tipped over in March 2025; low sun and long shadows were part of the cause. Astrobotic's Griffin-1 is headed to Mons Mouton next.",
       "source": "IM-2 Athena touchdown point (Intuitive Machines / LROC); Mons Mouton is a NASA Artemis III candidate region",
-      "terrain": "skyline-type:plateau"
+      "terrain": "skyline-type:plateau",
+      "group": "original"
     },
     {
       "id": "shackleton-ce7",
@@ -19,7 +20,8 @@
       "role": "Power",
       "story": "China's Chang'e-7 target: a sunlit peak on the ridge near Shackleton crater. Its Aug 2026 launch was postponed with no new date announced, which makes it a real Slip Test case.",
       "source": "CNSA candidate site, as presented to UN COPUOS (Feb 2025); not NASA, not a final site",
-      "terrain": "skyline-type:ridge"
+      "terrain": "skyline-type:ridge",
+      "group": "original"
     },
     {
       "id": "malapert",
@@ -29,7 +31,8 @@
       "role": "Comms",
       "story": "A tall massif facing the Earth side of the Moon. Often cited as good for direct-to-Earth communication.",
       "source": "NASA Artemis III candidate region; notional landing point from Kring et al. 2025, JGR Planets, doi:10.1029/2024JE008905",
-      "terrain": "skyline-type:massif"
+      "terrain": "skyline-type:massif",
+      "group": "original"
     },
     {
       "id": "haworth",
@@ -39,7 +42,8 @@
       "role": "Science trade-off",
       "story": "Centre of NASA's Haworth candidate region, on low ground beside a crater whose permanently shadowed floor may hold water ice. Higher ridges nearby block the Sun most of the time, which shows how much the exact spot inside a region matters.",
       "source": "NASA Artemis III candidate region 'Haworth' (centre of the PGDA Haworth 5 m DEM tile)",
-      "terrain": "skyline-type:crater-edge"
+      "terrain": "skyline-type:crater-edge",
+      "group": "original"
     },
     {
       "id": "chandrayaan-3",
@@ -49,7 +53,8 @@
       "role": "Contrast",
       "story": "India's successful 2023 landing. Far south, but not at the pole, so the Sun climbs much higher.",
       "source": "ISRO landing; position from NASA LRO LROC imaging (not a NASA mission)",
-      "terrain": "skyline-type:plain"
+      "terrain": "skyline-type:plain",
+      "group": "original"
     },
     {
       "id": "apollo-11",
@@ -59,7 +64,41 @@
       "role": "Contrast",
       "story": "Equatorial site: two weeks of high sun, two weeks of night, and Earth always high in the sky.",
       "source": "NASA NSSDCA Apollo landing site coordinates (LM)",
-      "terrain": "skyline-type:plain"
+      "terrain": "skyline-type:plain",
+      "group": "original"
+    },
+    {
+      "id": "shackleton-ridge",
+      "name": "Shackleton–de Gerlache Ridge",
+      "lat": -89.684,
+      "lonEast": -163.261,
+      "role": "Power",
+      "group": "added",
+      "story": "Where the ridge joining Shackleton and de Gerlache craters meets Shackleton's rim. Peaks around here are among the most sunlit ground on the Moon, and the spot looks straight down into Shackleton's permanently shadowed floor.",
+      "source": "LROC (Arizona State University) image release 'Traversing the Shackleton de Gerlache Ridge': ridge–rim intersection at 89.684°S, 196.739°E",
+      "terrain": "skyline-type:ridge"
+    },
+    {
+      "id": "nobile-rim-2",
+      "name": "Nobile Rim 2",
+      "lat": -84.20156,
+      "lonEast": 60.69989,
+      "role": "Artemis candidate",
+      "group": "added",
+      "story": "One of NASA's nine Artemis III candidate regions, on the rim of Nobile crater. This is the best-ranked point in the region from a published multi-criteria study (slope, sunlight, Earth view, nearby ice).",
+      "source": "NASA Artemis III candidate region (Oct 2024 list); point = top-ranked site in Table 3 of arXiv:2406.19863 (84°12'5.61\"S, 60°41'59.61\"E)",
+      "terrain": "skyline-type:crater-rim"
+    },
+    {
+      "id": "change-4",
+      "name": "Chang'e-4 (Von Kármán)",
+      "lat": -45.457,
+      "lonEast": 177.589,
+      "role": "Contrast",
+      "group": "added",
+      "story": "China's 2019 landing, the first on the far side. Earth never rises here, so direct contact is impossible and the lander talks to Earth through the Queqiao relay satellite.",
+      "source": "CNSA landing; position from NASA LRO LROC imaging (45.457°S, 177.589°E, ±20 m)",
+      "terrain": "skyline-type:crater-floor"
     }
   ]
 }

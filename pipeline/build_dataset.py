@@ -6,6 +6,8 @@ Steps per site: (1) Sun/Earth az/el from JPL Horizons, (2) skyline from LOLA DEM
 Usage:
   pip install -r requirements.txt
   python build_dataset.py --start 2026-12-01 --stop 2027-03-01
+  # add or refresh some sites inside the existing app dataset, keeping the others:
+  python build_dataset.py --start 2026-11-01 --stop 2029-01-01 --step 2h --only a,b --merge
 DEM files are listed per site in dems.json (see dems.example.json).
 """
 import argparse
@@ -45,6 +47,8 @@ def main():
     ap.add_argument("--stop", default="2027-03-01")
     ap.add_argument("--step", default="1h")
     ap.add_argument("--only", help="comma-separated site ids")
+    ap.add_argument("--merge", action="store_true",
+                    help="keep the other sites already in the app dataset; --start/--step must match it")
     args = ap.parse_args()
 
     sites = json.loads((HERE / "sites.json").read_text(encoding="utf-8"))["sites"]
@@ -81,6 +85,7 @@ def main():
                 cols[key + "Vis"].append(int(el > sky[int(round(az)) % 360]))
         out_sites.append({
             **{k: s[k] for k in ("id", "name", "lat", "lonEast", "role", "story", "source")},
+            "group": s.get("group", "original"),
             "terrain": terrain,
             "confidence": confidence,
             "skyline": sky,
@@ -95,6 +100,24 @@ def main():
 
     start_iso = datetime.strptime(args.start, "%Y-%m-%d").replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
     step_h = float(args.step.rstrip("h")) if args.step.endswith("h") else 1.0
+    if args.merge and OUT.exists():
+        old = json.loads(OUT.read_text(encoding="utf-8"))
+        om = old["meta"]
+        if om["start"] != start_iso or float(om["stepHours"]) != step_h:
+            raise SystemExit(f"--merge: dataset starts {om['start']} every {om['stepHours']} h; "
+                             f"rerun with --start {om['start'][:10]} --step {om['stepHours']:g}h")
+        if count < om["count"]:
+            raise SystemExit(f"--merge: new series has {count} steps but the dataset has {om['count']}; use a later --stop")
+        count = om["count"]
+        for o in out_sites:
+            for k in o["series"]:
+                o["series"][k] = o["series"][k][:count]
+        new_ids = {o["id"] for o in out_sites}
+        kept = [o for o in old["sites"] if o["id"] not in new_ids]
+        order = [x["id"] for x in json.loads((HERE / "sites.json").read_text(encoding="utf-8"))["sites"]]
+        out_sites = sorted(kept + out_sites, key=lambda o: order.index(o["id"]) if o["id"] in order else len(order))
+        print(f"merged: {len(kept)} kept, {len(new_ids)} new/updated")
+
     data = {
         "meta": {
             "mock": False,
