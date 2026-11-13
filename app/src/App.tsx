@@ -8,9 +8,10 @@ import SiteBrief from './components/SiteBrief'
 import SitePicker from './components/SitePicker'
 import SummaryStrip from './components/SummaryStrip'
 import Timeline, { TimelineAxis } from './components/Timeline'
-import { analyze, bestLanding, clampIdx, fmtHours } from './lib/engine'
+import CompareTable from './components/CompareTable'
+import { analyze, bestLanding, clampIdx, fmtHours, nowIdx, withSunMode } from './lib/engine'
 import { useTheme } from './lib/theme'
-import type { Dataset, Mission } from './lib/types'
+import type { Dataset, Mission, SunMode } from './lib/types'
 
 const MoonScene = lazy(() => import('./components/MoonScene'))
 
@@ -29,7 +30,9 @@ function Panel({ title, hint, children, className = '' }: { title?: string; hint
 }
 
 export default function App() {
-  const [ds, setDs] = useState<Dataset | null>(null)
+  const [rawDs, setDs] = useState<Dataset | null>(null)
+  const [sunMode, setSunMode] = useState<SunMode>('centre')
+  const ds = useMemo(() => (rawDs ? withSunMode(rawDs, sunMode) : null), [rawDs, sunMode])
   const [error, setError] = useState<string | null>(null)
   const [siteId, setSiteId] = useState('malapert')
   const [mission, setMission] = useState<Mission>({ startIdx: 0, durationH: 24 * 10, needComms: true, slipDays: 0 })
@@ -42,6 +45,12 @@ export default function App() {
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then((d: Dataset) => {
         setDs(d)
+        const today = nowIdx(d)
+        if (today !== null) {
+          setMission((m) => ({ ...m, startIdx: today }))
+          setCursor(today)
+          return
+        }
         const first = d.sites.find((x) => x.id === 'malapert') ?? d.sites[0]
         const best = bestLanding(d, first, { startIdx: 0, durationH: 24 * 10, needComms: true, slipDays: 0 })
         setMission((m) => ({ ...m, startIdx: best.idx }))
@@ -115,6 +124,10 @@ export default function App() {
               mission={mission}
               onChange={(m) => { setMission(m); if (m.startIdx !== mission.startIdx) setCursor(m.startIdx) }}
               onBest={() => setLanding(bestLanding(ds, site, mission).idx)}
+              nowIndex={nowIdx(ds)}
+              onNow={(i) => setLanding(i)}
+              sunMode={sunMode}
+              onSunMode={setSunMode}
             />
           </Panel>
         </aside>
@@ -135,6 +148,10 @@ export default function App() {
             </section>
             <SiteBrief ds={ds} site={site} idx={cur} />
           </div>
+
+          <Panel title="All sites" hint="Same landing date and mission length for every site. Click a row to open that site.">
+            <CompareTable ds={ds} mission={mission} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
+          </Panel>
 
           <Panel title="Timeline" hint="Drag to move the landing. Solid box: mission. Dashed box: delayed landing.">
             <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />

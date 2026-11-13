@@ -26,6 +26,8 @@ export interface Dataset {
   sites: Site[]
 }
 
+export type SunMode = 'centre' | 'firstLight'
+
 export interface Mission {
   startIdx: number
   durationH: number

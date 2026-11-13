@@ -1,4 +1,4 @@
-import type { Analysis, Dataset, Mission, Site, Verdict } from './types'
+import type { Analysis, Dataset, Mission, Site, SunMode, Verdict } from './types'
 
 export const HOUR = 3600_000
 
@@ -123,4 +123,31 @@ export function fmtHours(h: number): string {
   const d = Math.floor(h / 24)
   const r = Math.round(h - d * 24)
   return r ? `${d} d ${r} h` : `${d} d`
+}
+
+/** Sun's apparent radius in degrees, used for the "first light" (upper edge) rule. */
+export const SUN_RADIUS_DEG = 0.27
+
+/**
+ * Recompute Sun visibility from the stored elevations and skyline, so the app can
+ * switch between "centre above skyline" and "first light" (upper edge above skyline)
+ * without rerunning the pipeline. Earth visibility is left as the pipeline wrote it.
+ */
+export function withSunMode(ds: Dataset, mode: SunMode): Dataset {
+  if (mode === 'centre') return ds // the pipeline already computed the centre rule
+  const offset = SUN_RADIUS_DEG
+  return {
+    ...ds,
+    sites: ds.sites.map((site) => {
+      const { sunAz, sunEl } = site.series
+      const sunVis = sunEl.map((el, i) => (el + offset > site.skyline[((Math.round(sunAz[i]) % 360) + 360) % 360] ? 1 : 0))
+      return { ...site, series: { ...site.series, sunVis } }
+    }),
+  }
+}
+
+/** Index of the current time in the dataset, or null when today is outside the data range. */
+export function nowIdx(ds: Dataset): number | null {
+  const i = dateToIdx(ds, new Date())
+  return i >= 0 && i < ds.meta.count ? i : null
 }

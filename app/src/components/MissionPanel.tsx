@@ -1,15 +1,19 @@
-import type { Dataset, Mission } from '../lib/types'
-import { clampIdx, dateToIdx, idxToDate } from '../lib/engine'
+import type { Dataset, Mission, SunMode } from '../lib/types'
+import { clampIdx, dateToIdx, fmtDate, idxToDate } from '../lib/engine'
 
 function toLocalInput(d: Date) {
   return d.toISOString().slice(0, 16)
 }
 
-export default function MissionPanel({ ds, mission, onChange, onBest }: {
+export default function MissionPanel({ ds, mission, onChange, onBest, nowIndex, onNow, sunMode, onSunMode }: {
   ds: Dataset
   mission: Mission
   onChange: (m: Mission) => void
   onBest: () => void
+  nowIndex: number | null
+  onNow: (idx: number) => void
+  sunMode: SunMode
+  onSunMode: (m: SunMode) => void
 }) {
   const start = idxToDate(ds, mission.startIdx)
   const min = toLocalInput(idxToDate(ds, 0))
@@ -18,7 +22,18 @@ export default function MissionPanel({ ds, mission, onChange, onBest }: {
   return (
     <div className="flex flex-col gap-4">
       <label className="flex flex-col gap-1.5">
-        <span className="text-xs text-ink-3">Landing (UTC)</span>
+        <span className="flex items-baseline justify-between text-xs text-ink-3">
+          <span>Landing (UTC)</span>
+          <button
+            type="button"
+            disabled={nowIndex === null}
+            onClick={() => nowIndex !== null && onNow(nowIndex)}
+            title={nowIndex === null ? `Today is outside the data range (${fmtDate(idxToDate(ds, 0))} to ${fmtDate(idxToDate(ds, ds.meta.count - 1))})` : 'Land now'}
+            className="rounded-md px-1.5 py-0.5 font-medium text-earth hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-ink-3 disabled:hover:bg-transparent"
+          >
+            Now
+          </button>
+        </span>
         <input
           type="datetime-local"
           value={toLocalInput(start)}
@@ -51,6 +66,24 @@ export default function MissionPanel({ ds, mission, onChange, onBest }: {
           <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform duration-200 ease-out ${mission.needComms ? 'translate-x-4' : 'translate-x-0.5'}`} />
         </span>
       </button>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs text-ink-3">Count the Sun as up when</span>
+        <div className="grid grid-cols-2 gap-1 rounded-lg bg-surface-2 p-1 text-xs" role="radiogroup" aria-label="Sun rule">
+          {([['centre', 'Its centre clears'], ['firstLight', 'Its top edge clears']] as const).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={sunMode === v}
+              onClick={() => onSunMode(v)}
+              className={`rounded-md px-2 py-1.5 transition-colors duration-150 ${sunMode === v ? 'bg-surface font-medium text-ink shadow-sm' : 'text-ink-2 hover:text-ink'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <label className="flex flex-col gap-1.5">
         <span className="flex justify-between text-xs text-ink-3">
