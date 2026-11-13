@@ -341,14 +341,14 @@ export default function App() {
                 <section id="moon-view" className="relative h-[420px] overflow-hidden rounded-[14px] bg-[#05070c] shadow-card lg:h-[520px]">
                   <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">{moonMode === 'globe' ? 'Loading Moon…' : 'Loading terrain…'}</div>}>
                     {moonMode === 'globe'
-                      ? <MoonScene site={site} sites={ds.sites} idx={cur} onSelect={setSiteId} />
+                      ? <MoonScene site={site} sites={ds.sites} idx={cur} time={idxToDate(ds, cur)} onSelect={setSiteId} />
                       : <SiteScene site={site} idx={cur} />}
                   </Suspense>
                   <MoonModeSwitch value={moonMode} onChange={setMoonMode} />
                   {moonMode === 'globe' && (
                     <div className="pointer-events-none absolute bottom-3 left-4 flex gap-4 text-xs text-[#a2adc2]">
                       <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
-                      <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#4e9fff]" />Earth direction</span>
+                      <span title="Earth and Sun are shown at their true sizes and directions from Horizons. Earth is at its real distance; the Sun is drawn closer but at its true apparent size. Earth's turn and cloud cover are illustrative.">Earth and Sun to scale</span>
                     </div>
                   )}
                 </section>
