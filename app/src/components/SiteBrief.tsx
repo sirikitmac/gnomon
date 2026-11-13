@@ -1,4 +1,5 @@
 import { fmtDate, fmtHours, hoursUntilChange, idxToDate } from '../lib/engine'
+import { rangeWithin, useTerrainMeta } from '../lib/siteTerrain'
 import type { Dataset, Site } from '../lib/types'
 
 function Countdown({ label, setWord, riseWord, color, flags, ds, idx }: { label: string; setWord: string; riseWord: string; color: string; flags: number[]; ds: Dataset; idx: number }) {
@@ -28,6 +29,22 @@ function confidenceLabel(site: Site): string {
   }
 }
 
+/** Spread of sun exposure close to the landing point, from the 100 m exposure grid (Site 3D data). */
+function NearbySun({ site }: { site: Site }) {
+  const { value: meta } = useTerrainMeta(site.id)
+  const ex = meta?.available ? meta.exposure : undefined
+  if (!ex) return null
+  const [lo, hi] = rangeWithin(ex.sunPct, ex.n, ex.spacing_m, 500)
+  return (
+    <>
+      <dt className="text-ink-3">Nearby</dt>
+      <dd title="Share of Nov 2026 – Dec 2028 with the Sun's centre above each spot's own skyline, on a 100 m grid">
+        Within 500 m of the landing point, sun ranges from {Math.round(lo)}% to {Math.round(hi)}%
+      </dd>
+    </>
+  )
+}
+
 export default function SiteBrief({ ds, site, idx }: { ds: Dataset; site: Site; idx: number }) {
   return (
     <section className="flex flex-col rounded-[14px] bg-surface p-5 shadow-card">
@@ -44,6 +61,7 @@ export default function SiteBrief({ ds, site, idx }: { ds: Dataset; site: Site; 
         <dd>{site.terrain}</dd>
         <dt className="text-ink-3">Confidence</dt>
         <dd>{confidenceLabel(site)}</dd>
+        <NearbySun site={site} />
       </dl>
 
       <div className="mt-auto pt-5">

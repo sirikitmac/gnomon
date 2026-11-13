@@ -54,6 +54,15 @@ Sites without a DEM fall back to a smooth-sphere horizon and are labelled low co
 
 Site coordinates in `pipeline/sites.json` are approximate starting values: verify each one against its source before the final run.
 
+### Site 3D terrain and sun exposure
+
+```bash
+cd pipeline
+python build_site_terrain.py      # ~80 s for all sites; needs the DEMs in dems.json
+```
+
+Writes `app/public/data/terrain/` (format in `docs/data-format.md`): a 6 × 6 km height grid at 20 m around each site, and a 3 × 3 km grid of points every 100 m, each with its own terrain skyline, scored over the whole Sun/Earth series (sun %, Earth %, both %). Every grid point uses the landing site's Horizons Sun/Earth directions: within 1.5 km they change by < 0.1°, and the skylines are binned in the site's own azimuth frame so the polar meridian convergence doesn't matter. Sites without a 5 m / 20 m DEM (Apollo 11, Chandrayaan-3 with 240 m only) get no close-up.
+
 ### Data sources
 
 - JPL Horizons: https://ssd.jpl.nasa.gov/horizons/
@@ -72,6 +81,7 @@ Site coordinates in `pipeline/sites.json` are approximate starting values: verif
 - **Scenarios**: one-click demo presets with an explanation. How each date was chosen is documented in `app/src/lib/presets.ts`. The Athena preset is a similar low-Sun period in our data range, **not** the real March 2025 landing (our data starts Nov 2026).
 - **Share**: the plan lives in the URL (`?site=…&t=…&days=…&comms=…&slip=…&sun=…`); Copy link, a print-ready one-page report (Print / Save as PDF) and a CSV of the all-sites table.
 - **Sky view**: first-person 360° panorama with the terrain skyline, the Sun and Earth, play/pause through the mission. Vertical scale is exaggerated (the factor is shown).
+- **Site 3D**: the Moon panel's "Globe | Site 3D" switch shows the real terrain around the selected site (6 × 6 km at 20 m), lit by the Sun at the mission time with shadows from the patch itself plus distant ridges (from per-point skylines). Overlays: a sun-exposure heat map (Sun, Earth or both, Nov 2026 – Dec 2028, 100 m grid) and a "sunlit area" outline at a chosen threshold with its area. Vertical exaggeration 1–3× is labelled; Sun/Earth heights are stretched the same way so shadow lengths stay true. Sites without a 5 m / 20 m DEM say so instead of drawing a surface.
 - **Learn**: a 7-step plain-language tour of the interface and the ideas behind it.
 
 ## How the verdict works

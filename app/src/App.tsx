@@ -28,6 +28,34 @@ import { useTheme } from './lib/theme'
 import type { Dataset, Mission, PlanState, SunMode } from './lib/types'
 
 const MoonScene = lazy(() => import('./components/MoonScene'))
+const SiteScene = lazy(() => import('./components/SiteScene'))
+
+type MoonMode = 'globe' | 'site3d'
+const MOON_MODE_KEY = 'rocky.moonMode'
+function readMoonMode(): MoonMode {
+  try { return sessionStorage.getItem(MOON_MODE_KEY) === 'site3d' ? 'site3d' : 'globe' } catch { return 'globe' }
+}
+
+/** "Globe | Site 3D" switch for the Moon panel, styled like the panel's other dark controls. */
+function MoonModeSwitch({ value, onChange }: { value: MoonMode; onChange: (m: MoonMode) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Moon view" className="absolute left-3 top-3 z-20 flex rounded-md bg-[#0f1626]/80 p-0.5 ring-1 ring-white/15 backdrop-blur">
+      {([['globe', 'Globe', 'The whole Moon with every site'], ['site3d', 'Site 3D', 'Real terrain around the selected site, lit at the mission time']] as const).map(([m, label, title]) => (
+        <button
+          key={m}
+          type="button"
+          role="radio"
+          aria-checked={value === m}
+          title={title}
+          onClick={() => onChange(m)}
+          className={`min-h-7 rounded-[5px] px-2.5 text-xs font-medium transition-colors duration-150 ${value === m ? 'bg-[#e5e9f1] text-[#0f1626]' : 'text-[#c9d1e0] hover:text-white'}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function Panel({ id, title, hint, children, className = '' }: { id?: string; title?: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
@@ -68,6 +96,11 @@ export default function App() {
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [urlReady, setUrlReady] = useState(false)
   const [learnOn, setLearnOn] = useState(false)
+  const [moonMode, setMoonModeState] = useState<MoonMode>(readMoonMode)
+  const setMoonMode = (m: MoonMode) => {
+    setMoonModeState(m)
+    try { sessionStorage.setItem(MOON_MODE_KEY, m) } catch { /* storage blocked: the choice lasts until reload */ }
+  }
   const [view, setViewState] = useState<View>(() => viewFromHash(location.hash))
   // Pages live in the URL hash so Back/Forward work and a shared link can open a page.
   const setView = useCallback((v: View) => {
@@ -306,13 +339,18 @@ export default function App() {
               </div>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
                 <section id="moon-view" className="relative h-[420px] overflow-hidden rounded-[14px] bg-[#05070c] shadow-card lg:h-[520px]">
-                  <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">Loading Moon…</div>}>
-                    <MoonScene site={site} sites={ds.sites} idx={cur} onSelect={setSiteId} />
+                  <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">{moonMode === 'globe' ? 'Loading Moon…' : 'Loading terrain…'}</div>}>
+                    {moonMode === 'globe'
+                      ? <MoonScene site={site} sites={ds.sites} idx={cur} onSelect={setSiteId} />
+                      : <SiteScene site={site} idx={cur} />}
                   </Suspense>
-                  <div className="pointer-events-none absolute bottom-3 left-4 flex gap-4 text-xs text-[#a2adc2]">
-                    <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
-                    <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#4e9fff]" />Earth direction</span>
-                  </div>
+                  <MoonModeSwitch value={moonMode} onChange={setMoonMode} />
+                  {moonMode === 'globe' && (
+                    <div className="pointer-events-none absolute bottom-3 left-4 flex gap-4 text-xs text-[#a2adc2]">
+                      <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
+                      <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#4e9fff]" />Earth direction</span>
+                    </div>
+                  )}
                 </section>
                 <SiteBrief ds={ds} site={site} idx={cur} />
               </div>
