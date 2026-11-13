@@ -54,6 +54,15 @@ Sites without a DEM fall back to a smooth-sphere horizon and are labelled low co
 
 Site coordinates in `pipeline/sites.json` are approximate starting values: verify each one against its source before the final run.
 
+### Site 3D terrain and sun exposure
+
+```bash
+cd pipeline
+python build_site_terrain.py      # ~80 s for all sites; needs the DEMs in dems.json
+```
+
+Writes `app/public/data/terrain/` (format in `docs/data-format.md`): a 6 × 6 km height grid at 20 m around each site, and a 3 × 3 km grid of points every 100 m, each with its own terrain skyline, scored over the whole Sun/Earth series (sun %, Earth %, both %). Every grid point uses the landing site's Horizons Sun/Earth directions: within 1.5 km they change by < 0.1°, and the skylines are binned in the site's own azimuth frame so the polar meridian convergence doesn't matter. Sites without a 5 m / 20 m DEM (Apollo 11, Chandrayaan-3 with 240 m only) get no close-up.
+
 ### Data sources
 
 - JPL Horizons: https://ssd.jpl.nasa.gov/horizons/

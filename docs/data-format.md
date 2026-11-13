@@ -42,3 +42,15 @@ Conventions
 - `skyline[a]` is the highest terrain angle seen at azimuth `a`, including lunar curvature (can be negative on a peak).
 - Visible means the body's centre elevation is greater than `skyline[round(az) % 360]`.
 - Columnar arrays keep the file small (~60 KB per site per 90 days at 1 h steps).
+
+# Site 3D data (`app/public/data/terrain/`)
+
+Written by `pipeline/build_site_terrain.py` for every site with a 5 m or 20 m DEM. Sites with no DEM or only a coarse one get just `<id>.json` with `available: false, coarse: true, reason`.
+
+| File | Contents |
+| --- | --- |
+| `<id>.bin` | Terrain heights, Float32 little-endian, `size × size` (301 × 301, 20 m → 6 km), row-major, row 0 = north edge, column 0 = west edge. Metres relative to the landing point's ground (centre sample = 0), from the site's tangent plane (curvature drop d²/2R included). ~353 KB. |
+| `<id>.sky.bin` | Skyline of each exposure-grid point: Uint8, `(n·n) × 360`, point-major in the same order as the grids; degrees = `v / 10 − 5` (clipped to −5…20.5°, far above any polar Sun/Earth elevation). Used by the 3D view to shade terrain hidden by distant ridges at the current time. |
+| `<id>.json` | `terrain` (size, spacing_m, extent_m, min/max height, source, resolution note) and `exposure` (spacing_m = 100, n = 31, `sunPct[]`, `earthPct[]`, `bothPct[]`, `height_m[]` per point, period, rule, direction note), plus `checks` (centre vs `sites.json`). |
+
+Exposure grid: 31 × 31 points every 100 m (3 × 3 km), each with its own skyline (local 5 m + wide 20 m DEM, observer 2 m, same rule as `sites.json`), tested against the whole series in `sites.json`. **Direction approximation:** every point uses the landing site's Horizons Sun/Earth az/el. Skylines are binned in the site's own azimuth frame (so there is no meridian-convergence error near the pole) and elevation is corrected for the tilt of the local vertical (≤ 0.05°); parallax is < 0.001°.
