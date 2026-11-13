@@ -195,11 +195,12 @@ class DemWindow:
                    + dem[r0 + 1, c0] * fr * (1 - fc) + dem[r0 + 1, c0 + 1] * fr * fc)
         return out
 
-    def skylines(self, east, north, max_range_m=None, observer_h=2.0, rate=0.004, workers=8):
+    def skylines(self, east, north, max_range_m=None, observer_h=2.0, rate=0.004, workers=8, min_range_m=0.0):
         """Skylines (N, 360) for N points, same angle rule as skyline_from_dem.
 
         Radial step is one pixel out to px/rate, then grows as rate x distance; each
-        sample reads the pyramid level whose pixel matches the step. Returns
+        sample reads the pyramid level whose pixel matches the step. Terrain closer than
+        min_range_m is ignored (for a "distant terrain only" skyline). Returns
         (skylines, ground heights); points on nodata get -90 everywhere and NaN height.
         """
         from concurrent.futures import ThreadPoolExecutor
@@ -213,7 +214,9 @@ class DemWindow:
             steps.append(st)
             d.append(d[-1] + st)
         d, steps = np.array(d[:-1]), np.array(steps)
-        lvl = np.clip(np.floor(np.log2(steps / gpx + 1e-9)).astype(int), 0, len(self.pyr) - 1)
+        far = d >= min_range_m
+        d, steps = d[far], steps[far]
+        lvl =np.clip(np.floor(np.log2(steps / gpx + 1e-9)).astype(int), 0, len(self.pyr) - 1)
 
         az = np.radians(np.arange(360))
         dmap = d * self.k

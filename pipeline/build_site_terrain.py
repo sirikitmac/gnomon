@@ -4,7 +4,7 @@ For each site with a fine DEM (listed in dems.json) this writes, to app/public/d
   <id>.bin      terrain heights, Float32 little-endian, SIZE x SIZE, row-major, north row first,
                 west column first. Metres relative to the landing point's ground, measured from
                 the site's tangent plane (lunar curvature drop d^2/2R included).
-  <id>.sky.bin  skyline of every exposure-grid point, Uint8, (N*N) x 360, deg = value / 10 - 5
+  <id>.sky.bin  distant-terrain skyline (>= 1.5 km) of every exposure-grid point, Uint8, (N*N) x 360, deg = value / 10 - 5
                 (clipped to -5..20.5 deg; polar Sun/Earth never get that high, so visibility is exact).
   <id>.json     metadata + the exposure grid (sun %, Earth %, both % per point).
 Sites with no DEM, or only a coarse one (> 20 m), get a JSON with available: false.
@@ -36,6 +36,7 @@ OUT = DATA / "terrain"
 T_SIZE, T_SPACING = 301, 20.0  # terrain patch: 301 x 301 samples, 20 m -> 6 km; centre sample = site
 E_N, E_SPACING = 31, 100.0  # exposure grid: 31 x 31 points, 100 m -> 3 km
 OBSERVER_H = 2.0
+FAR_FROM_M = 1500.0  # sky.bin keeps only terrain this far from each point (nearer terrain is in the 6 km patch)
 SKY_LO, SKY_SCALE = -5.0, 10.0  # Uint8 skyline encoding
 
 
@@ -93,10 +94,11 @@ def build_site(site, dems):
     # --- 2. exposure grid: one skyline per point, then the whole series ---
     t = time.time()
     ee, en = grid(E_N, E_SPACING)
-    parts, ground = [], None
+    parts, far_parts, ground = [], [], None
     for d, w, rng in windows:
         sky, g = w.skylines(ee, en, max_range_m=rng, observer_h=OBSERVER_H)
         parts.append(sky)
+        far_parts.append(w.skylines(ee, en, max_range_m=rng, observer_h=OBSERVER_H, min_range_m=FAR_FROM_M)[0])
         if ground is None:
             ground = g
         else:
@@ -111,7 +113,7 @@ def build_site(site, dems):
     sun_pct, earth_pct, both_pct = (100 * sun.mean(1), 100 * earth.mean(1), 100 * (sun & earth).mean(1))
     print(f"  visibility over {sun.shape[1]} samples in {time.time() - t:.1f} s")
 
-    q = np.clip(np.round((sky - SKY_LO) * SKY_SCALE), 0, 255).astype(np.uint8)
+    q = np.clip(np.round((combine(*far_parts) - SKY_LO) * SKY_SCALE), 0, 255).astype(np.uint8)
     (OUT / f"{sid}.sky.bin").write_bytes(q.tobytes())
 
     # --- 4. sanity checks ---
@@ -171,6 +173,9 @@ def build_site(site, dems):
                            "directions differ by < 0.1 deg; skylines are binned in the site's azimuth frame and "
                            "elevation is corrected for the tilt of the local vertical (<= 0.05 deg)."),
             "skylineFile": f"{sid}.sky.bin",
+            "skylineMinRange_m": FAR_FROM_M,
+            "skylineNote": (f"Distant terrain only (>= {FAR_FROM_M:.0f} m from each point): the 3D view's shadow map covers "
+                            "nearer terrain, this covers ridges beyond it. sunPct/earthPct use the full skyline."),
             "skylineFormat": f"uint8, ({E_N}*{E_N}) x 360 (point-major, same order as the grids), deg = v / {SKY_SCALE:g} {SKY_LO:+g}",
             "sunPct": np.round(sun_pct, 1).tolist(),
             "earthPct": np.round(earth_pct, 1).tolist(),
