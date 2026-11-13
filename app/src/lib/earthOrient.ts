@@ -90,5 +90,7 @@ export function earthPose(t: Date, earthDir: V3) {
     north: toScene(eqToEcl([0, 0, 1])),
     greenwich: toScene(eqToEcl([cos(g), sin(g), 0])),
     sun: toScene(sEcl), // for checks against Horizons
+    /** Scene-frame directions of the J2000 equatorial axes (x: RA 0h, y: RA 6h, z: north celestial pole), for the star map. */
+    equatorial: [toScene(eqToEcl([1, 0, 0])), toScene(eqToEcl([0, 1, 0])), toScene(eqToEcl([0, 0, 1]))] as [V3, V3, V3],
   }
 }

@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { earthPose } from '../lib/earthOrient'
 import { subPoint } from '../lib/engine'
-import { Earth, StarField, Sun } from './SkyBodies'
+import { Earth, MilkyWay, StarField, Sun } from './SkyBodies'
 import type { Site } from '../lib/types'
 
 /** Same lat/lon → xyz mapping three.js uses for equirectangular textures on SphereGeometry. */
@@ -102,6 +102,7 @@ interface SceneProps extends Props {
   view: { kind: ViewKind; n: number }
   specs: LabelSpec[]
   els: React.MutableRefObject<Map<string, HTMLDivElement>>
+  milkyWay: boolean
 }
 
 /** One named feature from the IAU Gazetteer (public/data/moon_features.json). */
@@ -246,7 +247,7 @@ const FEATURE_TYPE: Record<string, string> = {
 
 const shortName = (x: Site) => x.name.replace(/\s*\(.*\)\s*/, '')
 
-function Scene({ site, sites, idx, time, view, specs, els }: SceneProps) {
+function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProps) {
   const { map: tex, normalMap } = useMoonTextures()
   const sunRef = useRef<THREE.DirectionalLight>(null)
   const markerRef = useRef<THREE.Group>(null)
@@ -304,8 +305,11 @@ function Scene({ site, sites, idx, time, view, specs, els }: SceneProps) {
     return {
       position: earthDir.clone().multiplyScalar(p.distance),
       quaternion: new THREE.Quaternion().setFromRotationMatrix(m),
+      equatorial: p.equatorial,
     }
   }, [tMs, earthDir])
+  // How much of Earth's disc is sunlit as seen from the Moon (1 = "full Earth", at new moon).
+  const earthLit = (1 - sunDir.dot(earthDir)) / 2
   // "Earth view": stand behind the Moon, a little off the Earth line, so Earth shows beside the limb.
   {
     const side = new THREE.Vector3().crossVectors(earthDir, new THREE.Vector3(0, 1, 0)).normalize()
@@ -350,10 +354,12 @@ function Scene({ site, sites, idx, time, view, specs, els }: SceneProps) {
   return (
     <>
       <color attach="background" args={['#05070c']} />
-      <StarField />
-      <Sun dir={sunDir} />
+      {milkyWay ? <MilkyWay equatorial={earth.equatorial} /> : <StarField />}
+      <Sun dir={sunDir} flare />
       <Earth position={earth.position} quaternion={earth.quaternion} sunDir={sunDir} />
-      <ambientLight intensity={0.16} />
+      <ambientLight intensity={0.07} />
+      {/* Earthshine: sunlight bounced off Earth faintly lights the Moon's night side, more when Earth looks full. */}
+      <directionalLight position={earthDir} color="#b4c8ff" intensity={0.45 * earthLit} />
       <directionalLight ref={sunRef} intensity={3.2} color="#fff4e0" position={sunDir} />
       <mesh>
         <sphereGeometry args={[1, 128, 128]} />
@@ -395,10 +401,25 @@ function Scene({ site, sites, idx, time, view, specs, els }: SceneProps) {
   )
 }
 
+const MILKY_WAY_KEY = 'rocky.milkyWay'
+
+/** Milky Way background on or off. Off by default everywhere; the choice is remembered per device. */
+function useMilkyWay() {
+  const [on, setOn] = useState(() => {
+    try { return localStorage.getItem(MILKY_WAY_KEY) === '1' } catch { return false }
+  })
+  const set = (v: boolean) => {
+    setOn(v)
+    try { localStorage.setItem(MILKY_WAY_KEY, v ? '1' : '0') } catch { /* storage unavailable */ }
+  }
+  return [on, set] as const
+}
+
 export default function MoonScene(props: Props) {
   const [view, setView] = useState<{ kind: ViewKind; n: number }>({ kind: 'site', n: 0 })
   const go = (kind: ViewKind) => setView((v) => ({ kind, n: v.n + 1 }))
   const [showFeatures, setShowFeatures] = useState(false)
+  const [milkyWay, setMilkyWay] = useMilkyWay()
   const [picked, setPicked] = useState<MoonFeature | null>(null)
   const features = useMoonFeatures(showFeatures)
   const specs = useLabelSpecs(props.site, props.sites, features, props.onSelect, setPicked)
@@ -406,7 +427,7 @@ export default function MoonScene(props: Props) {
   return (
     <div className="relative h-full w-full">
       <Canvas camera={{ position: [0, 0.4, 3.4], fov: 40, near: 0.01, far: 20000 }} dpr={[1, 2]} gl={{ antialias: true }} className="cursor-grab active:cursor-grabbing">
-        <Scene {...props} view={view} specs={specs} els={els} />
+        <Scene {...props} view={view} specs={specs} els={els} milkyWay={milkyWay} />
       </Canvas>
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden={false}>
         {specs.map((sp) => (
@@ -465,6 +486,17 @@ export default function MoonScene(props: Props) {
           }`}
         >
           Moon names
+        </button>
+        <button
+          type="button"
+          aria-pressed={milkyWay}
+          onClick={() => setMilkyWay(!milkyWay)}
+          title="Show the real star sky from NASA's star map, Milky Way included, turned to where it really is on this date. Downloads about 1 MB the first time."
+          className={`pointer-events-auto rounded-md px-2.5 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
+            milkyWay ? 'bg-[#e5e9f1] text-[#0f1626] ring-transparent' : 'bg-[#0f1626]/80 text-[#e5e9f1] ring-white/15 hover:bg-[#1d2a44]'
+          }`}
+        >
+          Milky Way
         </button>
         {([['north', 'North pole', 'Look straight down on the north pole'], ['south', 'South pole', 'Look straight down on the south pole'], ['earth', 'Earth view', 'Look past the Moon at Earth: real size, real distance, real phase'], ['site', 'Recenter', 'Fly back to the selected site']] as const).map(([kind, label, title]) => (
           <button
