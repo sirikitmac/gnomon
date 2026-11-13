@@ -1,9 +1,11 @@
-import { OrbitControls, Stars } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+import { earthPose } from '../lib/earthOrient'
 import { subPoint } from '../lib/engine'
+import { Earth, StarField, Sun } from './SkyBodies'
 import type { Site } from '../lib/types'
 
 /** Same lat/lon → xyz mapping three.js uses for equirectangular textures on SphereGeometry. */
@@ -89,10 +91,12 @@ interface Props {
   site: Site
   sites: Site[]
   idx: number
+  /** UTC time of idx; turns Earth to the right side and sets its distance. */
+  time: Date
   onSelect: (id: string) => void
 }
 
-type ViewKind = 'site' | 'south' | 'north'
+type ViewKind = 'site' | 'south' | 'north' | 'earth'
 
 interface SceneProps extends Props {
   view: { kind: ViewKind; n: number }
@@ -242,10 +246,9 @@ const FEATURE_TYPE: Record<string, string> = {
 
 const shortName = (x: Site) => x.name.replace(/\s*\(.*\)\s*/, '')
 
-function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
+function Scene({ site, sites, idx, time, view, specs, els }: SceneProps) {
   const { map: tex, normalMap } = useMoonTextures()
   const sunRef = useRef<THREE.DirectionalLight>(null)
-  const earthRef = useRef<THREE.Mesh>(null)
   const markerRef = useRef<THREE.Group>(null)
   const pulseRef = useRef<THREE.Mesh>(null)
   const { camera } = useThree()
@@ -264,6 +267,7 @@ function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
     south: new THREE.Vector3(0.001, -2.6, 0.001),
     north: new THREE.Vector3(0.001, 2.6, 0.001),
   }), [])
+  const earthView = useRef(new THREE.Vector3(0, 0, 6))
   const flyTo = useRef(camTarget)
   const lastSite = useRef(site.id)
   const lastViewN = useRef(view.n)
@@ -273,21 +277,41 @@ function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
     const buttonPressed = lastViewN.current !== view.n
     lastSite.current = site.id
     lastViewN.current = view.n
-    flyTo.current = siteChanged && !buttonPressed ? camTarget : view.kind === 'site' ? camTarget : poleViews[view.kind]
+    flyTo.current = siteChanged && !buttonPressed ? camTarget : view.kind === 'site' ? camTarget : view.kind === 'earth' ? earthView.current.clone() : poleViews[view.kind]
     flight.current = { t: 0, from: camera.position.clone(), fromTarget: controls.current?.target.clone() ?? new THREE.Vector3() }
   }, [site.id, camera, view, camTarget, poleViews])
 
 
 
   const s = site.series
+  // Unit directions from the Moon's centre, from the Horizons az/el at the selected site.
   const sunDir = useMemo(() => {
     const [la, lo] = subPoint(site.lat, site.lonEast, s.sunAz[idx], s.sunEl[idx])
-    return latLonToVec(la, lo, 10)
+    return latLonToVec(la, lo, 1)
   }, [site, idx, s])
   const earthDir = useMemo(() => {
     const [la, lo] = subPoint(site.lat, site.lonEast, s.earthAz[idx], s.earthEl[idx])
-    return latLonToVec(la, lo, 4.2)
+    return latLonToVec(la, lo, 1)
   }, [site, idx, s])
+  // Earth at its real distance, turned the way it really faces the Moon at this time.
+  const tMs = time.getTime()
+  const earth = useMemo(() => {
+    const p = earthPose(new Date(tMs), [earthDir.x, earthDir.y, earthDir.z])
+    const north = new THREE.Vector3(...p.north)
+    const greenwich = new THREE.Vector3(...p.greenwich)
+    // Sphere UVs put 0° longitude on local +x and the north pole on +y (same mapping as latLonToVec).
+    const m = new THREE.Matrix4().makeBasis(greenwich, north, new THREE.Vector3().crossVectors(greenwich, north))
+    return {
+      position: earthDir.clone().multiplyScalar(p.distance),
+      quaternion: new THREE.Quaternion().setFromRotationMatrix(m),
+    }
+  }, [tMs, earthDir])
+  // "Earth view": stand behind the Moon, a little off the Earth line, so Earth shows beside the limb.
+  {
+    const side = new THREE.Vector3().crossVectors(earthDir, new THREE.Vector3(0, 1, 0)).normalize()
+    earthView.current.copy(earthDir).multiplyScalar(-Math.cos(0.24)).addScaledVector(side, Math.sin(0.24)).multiplyScalar(6.2)
+    earthView.current.y += 0.35
+  }
 
   useFrame((state, dt) => {
     const f = flight.current
@@ -315,7 +339,6 @@ function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
       }
     }
     sunRef.current?.position.lerp(sunDir, 0.15)
-    earthRef.current?.position.lerp(earthDir, 0.15)
     if (pulseRef.current) {
       const p = (state.clock.elapsedTime % 1.8) / 1.8
       pulseRef.current.scale.setScalar(1 + p * 2.2)
@@ -327,7 +350,9 @@ function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
   return (
     <>
       <color attach="background" args={['#05070c']} />
-      <Stars radius={60} depth={30} count={2500} factor={2.2} fade speed={0.3} />
+      <StarField />
+      <Sun dir={sunDir} />
+      <Earth position={earth.position} quaternion={earth.quaternion} sunDir={sunDir} />
       <ambientLight intensity={0.16} />
       <directionalLight ref={sunRef} intensity={3.2} color="#fff4e0" position={sunDir} />
       <mesh>
@@ -366,10 +391,6 @@ function Scene({ site, sites, idx, view, specs, els }: SceneProps) {
           <meshBasicMaterial color="#e5e9f1" />
         </mesh>
       ))}
-      <mesh ref={earthRef} position={earthDir}>
-        <sphereGeometry args={[0.09, 48, 48]} />
-        <meshStandardMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.45} roughness={0.6} />
-      </mesh>
     </>
   )
 }
@@ -384,7 +405,7 @@ export default function MoonScene(props: Props) {
   const els = useRef(new Map<string, HTMLDivElement>())
   return (
     <div className="relative h-full w-full">
-      <Canvas camera={{ position: [0, 0.4, 3.4], fov: 40, near: 0.01 }} dpr={[1, 2]} gl={{ antialias: true }} className="cursor-grab active:cursor-grabbing">
+      <Canvas camera={{ position: [0, 0.4, 3.4], fov: 40, near: 0.01, far: 20000 }} dpr={[1, 2]} gl={{ antialias: true }} className="cursor-grab active:cursor-grabbing">
         <Scene {...props} view={view} specs={specs} els={els} />
       </Canvas>
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden={false}>
@@ -445,7 +466,7 @@ export default function MoonScene(props: Props) {
         >
           Moon names
         </button>
-        {([['north', 'North pole', 'Look straight down on the north pole'], ['south', 'South pole', 'Look straight down on the south pole'], ['site', 'Recenter', 'Fly back to the selected site']] as const).map(([kind, label, title]) => (
+        {([['north', 'North pole', 'Look straight down on the north pole'], ['south', 'South pole', 'Look straight down on the south pole'], ['earth', 'Earth view', 'Look past the Moon at Earth: real size, real distance, real phase'], ['site', 'Recenter', 'Fly back to the selected site']] as const).map(([kind, label, title]) => (
           <button
             key={kind}
             type="button"

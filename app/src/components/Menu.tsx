@@ -15,6 +15,8 @@ const REFS = [
   { title: 'Quickmap (LROC, Arizona State University)', note: 'High-resolution imagery and terrain, used to check site terrain', url: 'https://quickmap.lroc.asu.edu/' },
   { title: 'Canadian Space Agency: Moon Exploration', note: 'Background on lunar missions and Artemis partners', url: 'https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/' },
   { title: 'NASA SVS: CGI Moon Kit', note: 'Moon color and elevation maps for the 3D globe', url: 'https://svs.gsfc.nasa.gov/4720' },
+  { title: 'NASA Blue Marble (via three-globe, MIT)', note: 'Earth day, night lights and cloud images for the 3D globe', url: 'https://visibleearth.nasa.gov/collection/1484/blue-marble' },
+  { title: 'Meeus, Astronomical Algorithms', note: 'Short series used only to turn the 3D Earth and set its distance', url: 'https://www.willbell.com/math/mc1.htm' },
   { title: 'NASA Artemis III candidate landing regions', note: 'Main site list', url: 'https://www.nasa.gov/humans-in-space/artemis/' },
   { title: 'Apollo landing sites (NASA NSSDCA)', note: 'Coordinates for the Apollo contrast site', url: 'https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html' },
 ]

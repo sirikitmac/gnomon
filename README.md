@@ -24,7 +24,9 @@ npm run dev
 
 It reads `app/public/data/sites.json`, which now holds **real NASA-derived data** (Dec 2026 – Mar 2027).
 
-**Moon textures:** `app/public/textures/` holds the NASA SVS CGI Moon Kit (svs.gsfc.nasa.gov/4720) color map with filled poles (`moon_color.jpg` 4k, `moon_color_8k.jpg` 8k) and a normal map computed from the LOLA elevation map `ldem_16_uint.tif` with 5x vertical exaggeration (`moon_normal.jpg`). Crater names come from the IAU Gazetteer of Planetary Nomenclature (USGS).
+**Moon textures:** `app/public/textures/` holds the NASA SVS CGI Moon Kit (svs.gsfc.nasa.gov/4720) color map with filled poles (`moon_color.jpg` 4k, `moon_color_8k.jpg` 8k) and a normal map computed from the LOLA elevation map `ldem_16_uint.tif` with 5x vertical exaggeration (`moon_normal.jpg`). Crater names come from the IAU Gazetteer of Planetary Nomenclature (USGS). Earth textures (`earth_day.jpg`, `earth_night.jpg`, `earth_clouds.jpg`) are NASA Blue Marble / Black Marble images as packaged in three-globe (MIT, Vasco Asturiano), resized to 2k.
+
+**Earth and Sun on the globe:** both sit in the directions Horizons gives for the selected site and time. Earth is drawn at its true size (3.67 Moon radii) and true distance (Meeus series, ~207–233 Moon radii); its phase comes from the same Sun direction that lights the Moon. Its spin axis and the longitude facing the Moon are approximate (`app/src/lib/earthOrient.ts`; checked against Horizons, the predicted Sun direction is within 0.4°). The Sun is drawn at 6,000 Moon radii instead of ~86,000, at its true apparent size (0.53°).
 
 ## Data
 
