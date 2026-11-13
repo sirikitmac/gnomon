@@ -10,6 +10,7 @@ import SummaryStrip from './components/SummaryStrip'
 import Timeline from './components/Timeline'
 import CompareTable from './components/CompareTable'
 import LaunchCalendar from './components/LaunchCalendar'
+import LearnTour from './components/LearnTour'
 import PlanPanel from './components/PlanPanel'
 import Popover, { MenuItem } from './components/Popover'
 import ScenarioBanner from './components/ScenarioBanner'
@@ -55,9 +56,11 @@ export default function App() {
   const [scenario, setScenario] = useState<Preset | null>(null)
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [urlReady, setUrlReady] = useState(false)
+  const [learnOn, setLearnOn] = useState(false)
   const [theme, setTheme] = useTheme()
   const notify = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }))
   const clearToast = useCallback(() => setToast(null), [])
+  const closeLearn = useCallback(() => { setLearnOn(false); document.getElementById('learn-button')?.focus() }, [])
 
   useEffect(() => {
     fetch('/data/sites.json')
@@ -128,6 +131,18 @@ export default function App() {
           <span className="hidden truncate text-[13px] text-ink-3 sm:inline">Lunar landing site navigator</span>
         </div>
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
+          <button
+            id="learn-button"
+            onClick={() => setLearnOn((v) => !v)}
+            aria-pressed={learnOn}
+            disabled={!ds}
+            title="A guided tour of how lunar landing sites work"
+            className={`flex h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.96] disabled:opacity-40 sm:px-2.5 ${learnOn ? 'bg-surface-2 text-ink' : ''}`}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden><path d="M2.5 4.5c2.2-1 4.4-1 6.5.5 2.1-1.5 4.3-1.5 6.5-.5v9.5c-2.2-1-4.4-1-6.5.5-2.1-1.5-4.3-1.5-6.5-.5V4.5ZM9 5v9.5" /></svg>
+            <span className="hidden md:inline">Learn</span>
+            <span className="sr-only md:hidden">Learn</span>
+          </button>
           <Popover
             label="Share"
             title="Share link, report and CSV"
@@ -252,10 +267,12 @@ export default function App() {
 
         <main className="flex min-w-0 flex-col gap-5">
           <ScenarioBanner scenario={scenario} onClose={() => setScenario(null)} />
-          <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} />
+          <div id="verdict" className="scroll-mt-20">
+            <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} />
+          </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <section className="relative h-[380px] overflow-hidden rounded-[14px] bg-[#05070c] shadow-card lg:h-[440px]">
+            <section id="moon-view" className="relative h-[380px] overflow-hidden rounded-[14px] bg-[#05070c] shadow-card lg:h-[440px]">
               <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">Loading Moon…</div>}>
                 <MoonScene site={site} sites={ds.sites} idx={cur} onSelect={setSiteId} />
               </Suspense>
@@ -268,7 +285,7 @@ export default function App() {
             <SiteBrief ds={ds} site={site} idx={cur} />
           </div>
 
-          <Panel title="All sites" hint="Same landing date and mission length for every site. Click a row to open that site.">
+          <Panel id="all-sites" title="All sites" hint="Same landing date and mission length for every site. Click a row to open that site.">
             <CompareTable ds={ds} mission={mission} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
           </Panel>
 
@@ -284,7 +301,7 @@ export default function App() {
             />
           </Panel>
 
-          <Panel title="Timeline" hint="Drag to move the landing. Solid box: mission. Dashed box: delayed landing.">
+          <Panel id="timeline" title="Timeline" hint="Drag to move the landing. Solid box: mission. Dashed box: delayed landing.">
             <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />
             <label className="mt-4 flex items-center gap-3 text-sm text-ink-2">
               <span className="shrink-0">Mission time</span>
@@ -302,7 +319,7 @@ export default function App() {
           </Panel>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <Panel title="Horizon view" hint="Terrain around the site, with the Sun and Earth paths">
+            <Panel id="horizon-view" title="Horizon view" hint="Terrain around the site, with the Sun and Earth paths">
               <Panorama site={site} a={a} cursor={cur} />
             </Panel>
             <Panel title="Elevation during the mission" hint="Above the shaded terrain means visible">
@@ -319,6 +336,7 @@ export default function App() {
       {appBar}
       {body}
       <Toast message={toast} onDone={clearToast} />
+      <LearnTour open={learnOn && !!ds} onClose={closeLearn} />
       <Menu open={menuOpen} onClose={() => setMenuOpen(false)} theme={theme} setTheme={setTheme} ds={ds} />
     </MotionConfig>
   )

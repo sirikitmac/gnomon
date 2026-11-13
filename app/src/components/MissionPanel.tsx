@@ -86,7 +86,7 @@ export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, no
         </div>
       </div>
 
-      <label className="flex flex-col gap-1.5">
+      <label id="slip-test" className="-m-1.5 flex flex-col gap-1.5 rounded-[10px] p-1.5">
         <span className="flex justify-between text-xs text-ink-3">
           <span>Slip Test: delay the landing by</span>
           <span className="tabular text-risk-ink">+{mission.slipDays} d</span>
