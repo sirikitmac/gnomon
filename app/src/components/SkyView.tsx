@@ -120,8 +120,9 @@ export default function SkyView({ ds, site, a, cursor, onCursor }: {
 
   const status = (b: (typeof bodies)[number]) => {
     const ridge = skylineAt(site.skyline, b.az)
-    if (b.up) return `${b.name} ${b.el.toFixed(1)}° up, clear of the ${ridge.toFixed(1)}° skyline`
-    return b.el < 0 && ridge <= 0 ? `${b.name} below the horizon (${b.el.toFixed(1)}°)` : `${b.name} hidden behind terrain (${b.el.toFixed(1)}°, ridge ${ridge.toFixed(1)}°)`
+    const el = `${b.el.toFixed(1)}°`
+    if (b.up) return `${b.name} in view: at ${el}, above the ${ridge.toFixed(1)}° skyline`
+    return `${b.name} hidden: at ${el}, behind the ${ridge.toFixed(1)}° skyline`
   }
 
   return (
