@@ -24,7 +24,7 @@ npm run dev
 
 It reads `app/public/data/sites.json`, which now holds **real NASA-derived data** (Dec 2026 – Mar 2027).
 
-**Real Moon texture (optional):** download the color map from the NASA SVS *CGI Moon Kit* (`lroc_color_poles_2k.tif` or similar), convert to JPG, and save as `app/public/textures/moon_color.jpg`. Without it the app draws a procedural Moon.
+**Moon textures:** `app/public/textures/` holds the NASA SVS CGI Moon Kit (svs.gsfc.nasa.gov/4720) color map with filled poles (`moon_color.jpg` 4k, `moon_color_8k.jpg` 8k) and a normal map computed from the LOLA elevation map `ldem_16_uint.tif` with 5x vertical exaggeration (`moon_normal.jpg`). Crater names come from the IAU Gazetteer of Planetary Nomenclature (USGS).
 
 ## Data
 
