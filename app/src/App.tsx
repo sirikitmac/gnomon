@@ -9,15 +9,16 @@ import SitePicker from './components/SitePicker'
 import SummaryStrip from './components/SummaryStrip'
 import Timeline from './components/Timeline'
 import CompareTable from './components/CompareTable'
+import LaunchCalendar from './components/LaunchCalendar'
 import { analyze, bestLanding, clampIdx, fmtHours, nowIdx, withSunMode } from './lib/engine'
 import { useTheme } from './lib/theme'
 import type { Dataset, Mission, SunMode } from './lib/types'
 
 const MoonScene = lazy(() => import('./components/MoonScene'))
 
-function Panel({ title, hint, children, className = '' }: { title?: string; hint?: string; children: React.ReactNode; className?: string }) {
+function Panel({ id, title, hint, children, className = '' }: { id?: string; title?: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-[14px] bg-surface p-4 shadow-card ${className}`}>
+    <section id={id} className={`scroll-mt-20 rounded-[14px] bg-surface p-4 shadow-card ${className}`}>
       {title && (
         <header className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <h2 className="font-display text-[15px] font-semibold">{title}</h2>
@@ -160,6 +161,10 @@ export default function App() {
               <input type="range" className="w-full" min={a.startIdx} max={a.endIdx - 1} value={cur} onChange={(e) => setCursor(+e.target.value)} />
               <span className="w-24 shrink-0 text-right tabular">T+{fmtHours((cur - a.startIdx) * ds.meta.stepHours)}</span>
             </label>
+          </Panel>
+
+          <Panel id="launch-calendar" title="Launch calendar" hint={`${site.name}: each day is a mission landing at 00:00 UTC with your current settings`}>
+            <LaunchCalendar ds={ds} site={site} mission={mission} todayIdx={nowIdx(ds)} onPick={setLanding} />
           </Panel>
 
           <div className="grid gap-4 xl:grid-cols-2">
