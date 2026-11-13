@@ -7,7 +7,7 @@
       "lat": -84.7906,
       "lonEast": 29.1957,
       "role": "Real mission",
-      "story": "Target of Intuitive Machines IM-2 Athena (Mar 2025). It tipped over in a crater; low sun angles and long shadows were part of the cause.",
+      "story": "Where Intuitive Machines' IM-2 Athena touched down and tipped over in March 2025; low sun and long shadows were part of the cause. Astrobotic's Griffin-1 is headed to Mons Mouton next.",
       "source": "IM-2 Athena touchdown point (Intuitive Machines / LROC); Mons Mouton is a NASA Artemis III candidate region",
       "terrain": "skyline-type:plateau"
     },
@@ -37,7 +37,7 @@
       "lat": -86.764,
       "lonEast": -22.777,
       "role": "Science trade-off",
-      "story": "Plateau beside Haworth crater, whose permanently shadowed floor may hold water ice. High science value, harder power and comms.",
+      "story": "Centre of NASA's Haworth candidate region, on low ground beside a crater whose permanently shadowed floor may hold water ice. Higher ridges nearby block the Sun most of the time, which shows how much the exact spot inside a region matters.",
       "source": "NASA Artemis III candidate region 'Haworth' (centre of the PGDA Haworth 5 m DEM tile)",
       "terrain": "skyline-type:crater-edge"
     },
