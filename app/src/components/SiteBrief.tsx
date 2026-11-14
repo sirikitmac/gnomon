@@ -57,6 +57,12 @@ export default function SiteBrief({ ds, site, idx, flush = false }: { ds: Datase
         <dd className="tabular">{Math.abs(site.lat).toFixed(2)}°{site.lat < 0 ? 'S' : 'N'}, {Math.abs(site.lonEast).toFixed(2)}°{site.lonEast < 0 ? 'W' : 'E'}</dd>
         <dt className="text-ink-3">Source</dt>
         <dd>{site.source}</dd>
+        {site.frame && (
+          <>
+            <dt className="text-ink-3">Frame</dt>
+            <dd title={site.frameNote}>{site.frame === 'ME' ? 'Mean Earth (same as LOLA and Horizons)' : 'Not stated by the source'}</dd>
+          </>
+        )}
         <dt className="text-ink-3">Terrain</dt>
         <dd>{site.terrain}</dd>
         <dt className="text-ink-3">Confidence</dt>

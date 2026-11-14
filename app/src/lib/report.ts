@@ -1,5 +1,5 @@
 import type { CompareRow } from './compare'
-import { fmtDateYear, fmtHours, idxToDate } from './engine'
+import { fmtDateYear, fmtHours, idxToDate, SCREEN } from './engine'
 import type { Analysis, Dataset, Mission, Site, SunMode, Verdict } from './types'
 
 export interface ReportInput {
@@ -7,6 +7,7 @@ export interface ReportInput {
   site: Site
   mission: Mission
   sunMode: SunMode
+  earthMaskDeg: number
   a: Analysis
   slipped: Analysis | null
   rows: CompareRow[]
@@ -82,7 +83,7 @@ export function buildReportHtml(r: ReportInput): string {
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rocky mission report: ${esc(site.name)}, ${d(mission.startIdx)}</title>
+<title>Gnomon mission report: ${esc(site.name)}, ${d(mission.startIdx)}</title>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
@@ -126,7 +127,7 @@ export function buildReportHtml(r: ReportInput): string {
 <div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>
 <main class="page">
   <div class="head">
-    <div><h1>Rocky mission report</h1><div class="muted">Lunar Landing Site Navigator · NASA Space Apps 2026</div></div>
+    <div><h1>Gnomon mission report</h1><div class="muted">Lunar Landing Site Navigator · NASA Space Apps 2026</div></div>
     <div class="muted">Generated ${esc(stamp(r.generatedAt))}</div>
   </div>
 
@@ -138,12 +139,13 @@ export function buildReportHtml(r: ReportInput): string {
       <dt>Mission length</dt><dd>${days} day${days > 1 ? 's' : ''}</dd>
       <dt>Needs</dt><dd>${mission.needComms ? 'Sunlight and direct-to-Earth comms at the same time' : 'Sunlight only'}</dd>
       <dt>Sun counts as up when</dt><dd>${sunRule(r.sunMode)}</dd>
+      <dt>Usable Earth link</dt><dd>${r.earthMaskDeg > 0 ? `Earth at least ${r.earthMaskDeg}° above the skyline` : 'Earth centre above the skyline (under 2° flagged as marginal)'}</dd>
       <dt>Slip Test</dt><dd>${mission.slipDays > 0 ? `+${mission.slipDays} day${mission.slipDays > 1 ? 's' : ''}` : 'Off'}</dd>
     </dl>
   </section>
 
   <section>
-    <h2>Verdict for ${esc(site.name)}</h2>
+    <h2>Screening verdict for ${esc(site.name)}</h2>
     <div class="verdict">
       <span class="big" style="background:${VCOLOR[a.verdict]}">${a.verdict}</span>
       <div><div class="muted">${mission.needComms ? 'Power and comms' : 'Power'} window after landing</div><div>${windowText}</div></div>
@@ -151,7 +153,9 @@ export function buildReportHtml(r: ReportInput): string {
     <div class="metrics">
       <div><span class="muted">Coverage</span><b>${pct(a.coveragePct)}</b></div>
       <div><span class="muted">Sunlight</span><b>${pct(a.sunPct)}</b></div>
+      <div><span class="muted">Partial Sun</span><b>${pct(a.sunPartialPct)}</b></div>
       <div><span class="muted">Earth in view</span><b>${pct(a.earthPct)}</b></div>
+      <div><span class="muted">Earth low (marginal)</span><b>${pct(a.earthMarginalPct)}</b></div>
       <div><span class="muted">Both at once</span><b>${pct(a.bothPct)}</b></div>
       <div><span class="muted">Longest blackout</span><b>${esc(fmtHours(a.longestBlackoutH))}</b></div>
     </div>
@@ -171,11 +175,15 @@ export function buildReportHtml(r: ReportInput): string {
     Each site's 360° skyline comes from NASA LRO LOLA terrain (PGDA 5 m site maps where available, plus wider LOLA mosaics), including the Moon's curvature.
     The Sun gives power and Earth gives direct contact only while above that skyline.
     <b>Coverage</b> is the share of mission hours with the requirement met; the <b>longest blackout</b> is the longest stretch without it.
-    <b>GO</b> = coverage ≥ 75% and blackout ≤ 24 h; <b>RISKY</b> = ≥ 45% and ≤ 96 h; otherwise <b>NO-GO</b>.
-    These thresholds are Team Rocky's own planning rules, not NASA criteria. Terrain confidence reflects the finest terrain map available for each site.</p>
-    <p>Data: JPL Horizons (ssd.jpl.nasa.gov/horizons), PGDA LOLA topography (pgda.gsfc.nasa.gov/products/78), method after Mazarico et al. 2011.
+    This is a <b>screening</b> verdict: <b>GO</b> = coverage ≥ ${SCREEN.goCoverage}% and blackout ≤ ${SCREEN.goGapH} h; <b>RISKY</b> = ≥ ${SCREEN.riskyCoverage}% and ≤ ${SCREEN.riskyGapH} h; otherwise <b>NO-GO</b>.
+    These thresholds are Team Lagrange Point's own defaults, not NASA criteria. For a decision, use the app's power check with your lander's battery, load and array.
+    Terrain confidence reflects the finest terrain map available for each site.</p>
+    <p>Checks: Sun and Earth positions agree with an independent calculation from JPL's DE421 ephemeris to 0.0005°.
+    Long-term sunlight agrees with NASA PGDA polar illumination maps to 2.1 percentage points on average (7 polar sites, max 5.4).
+    Data version ${esc(ds.meta.provenance?.version ?? 'unversioned')}.</p>
+    <p>Data: JPL Horizons (ssd.jpl.nasa.gov/horizons), PGDA LOLA topography (pgda.gsfc.nasa.gov/products/78 and /90), PGDA polar illumination maps (pgda.gsfc.nasa.gov/products/69), method after Mazarico et al. 2011.
     Chang'e-7 and Chandrayaan-3 coordinates come from CNSA and ISRO. Not affiliated with or endorsed by NASA.</p>
-    <p>Open this plan in Rocky: <a href="${esc(r.link)}">${esc(r.link)}</a></p>
+    <p>Open this plan in Gnomon: <a href="${esc(r.link)}">${esc(r.link)}</a></p>
   </section>
 </main>
 </body></html>`

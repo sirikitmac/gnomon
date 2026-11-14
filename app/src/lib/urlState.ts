@@ -3,8 +3,9 @@ import type { Dataset, PlanState } from './types'
 
 /*
  * Share-link format (all optional, invalid values are ignored):
- *   ?site=malapert&t=2026-12-14T00:00Z&days=10&comms=1&slip=0&sun=centre
- * t is the landing time in UTC (snapped to the data step); sun is "centre" or "edge".
+ *   ?site=malapert&t=2026-12-14T00:00Z&days=10&comms=1&slip=0&sun=centre&earth=2
+ * t is the landing time in UTC (snapped to the data step); sun is "centre" or "edge";
+ * earth is the minimum Earth clearance above the skyline, whole degrees 0-5.
  */
 
 export function encodePlan(ds: Dataset, st: PlanState): string {
@@ -15,6 +16,7 @@ export function encodePlan(ds: Dataset, st: PlanState): string {
   p.set('comms', st.needComms ? '1' : '0')
   p.set('slip', String(st.slipDays))
   p.set('sun', st.sunMode === 'firstLight' ? 'edge' : 'centre')
+  p.set('earth', String(st.earthMaskDeg))
   return p.toString()
 }
 
@@ -46,5 +48,7 @@ export function decodePlan(ds: Dataset, search: string): Partial<PlanState> {
   if (slip !== undefined) out.slipDays = slip
   const sun = p.get('sun')
   if (sun === 'centre' || sun === 'edge') out.sunMode = sun === 'edge' ? 'firstLight' : 'centre'
+  const earth = int(p.get('earth'), 0, 5)
+  if (earth !== undefined) out.earthMaskDeg = earth
   return out
 }

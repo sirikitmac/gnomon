@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import GnomonMark from './GnomonMark'
 import { useEffect, useRef } from 'react'
 import type { ThemePref } from '../lib/theme'
+import { SCREEN } from '../lib/engine'
 import type { Dataset } from '../lib/types'
 
 const EASE = [0.23, 1, 0.32, 1] as const
@@ -93,10 +94,11 @@ export default function Menu({ open, onClose, theme, setTheme, ds }: {
 
               <Section title="How it works">
                 <ol className="list-decimal space-y-2 pl-4 text-ink-2">
-                  <li>JPL Horizons gives the Sun's and Earth's direction and height in the sky at each site, every hour.</li>
+                  <li>JPL Horizons gives the Sun's and Earth's direction and height in the sky at each site, every 2 hours. Horizons includes the Moon's libration (its wobble), so Earth's monthly rise and fall in the sky is built in.</li>
                   <li>LOLA terrain gives each site's skyline: the highest ridge in every direction, including the Moon's curvature.</li>
-                  <li>The Sun gives power and Earth gives direct contact only while they sit above that skyline.</li>
-                  <li>Your mission window is checked hour by hour. GO needs at least 75% coverage and no blackout longer than 24 hours. RISKY needs 45% and 96 hours.</li>
+                  <li>The Sun gives power and Earth gives direct contact only while they sit above that skyline. Partial Sun is counted by how much of its disc shows. Earth contact counts as usable only when Earth clears the ridge by your chosen margin.</li>
+                  <li>The verdict is a quick screen with the team's own defaults, not NASA criteria: GO needs at least {SCREEN.goCoverage}% coverage and no blackout over {SCREEN.goGapH} hours; RISKY needs {SCREEN.riskyCoverage}% and {SCREEN.riskyGapH} hours. For a decision, use the Power check with your lander's battery, draw and array.</li>
+                  <li>The Landing area check runs the same verdict across the ground around the landing point, because a lander can touch down anywhere in its landing ellipse.</li>
                 </ol>
                 {ds?.meta.mock && (
                   <p className="mt-3 rounded-lg border border-risk/40 bg-risk/10 p-3 text-risk-ink">
@@ -104,6 +106,19 @@ export default function Menu({ open, onClose, theme, setTheme, ds }: {
                   </p>
                 )}
               </Section>
+
+              {ds?.meta.provenance && (
+                <Section title="Data and checks">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-ink-2">
+                    <dt className="text-ink-3">Version</dt><dd className="tabular">{ds.meta.provenance.version} (built {ds.meta.provenance.built})</dd>
+                    <dt className="text-ink-3">Positions</dt><dd>{ds.meta.provenance.ephemeris}</dd>
+                    <dt className="text-ink-3">Terrain</dt><dd>{ds.meta.provenance.terrain}</dd>
+                  </dl>
+                  <ul className="mt-3 list-disc space-y-1.5 pl-4 text-ink-2">
+                    {ds.meta.provenance.independentChecks.map((c) => <li key={c}>{c}</li>)}
+                  </ul>
+                </Section>
+              )}
 
               <Section title="References">
                 <ul className="space-y-3">

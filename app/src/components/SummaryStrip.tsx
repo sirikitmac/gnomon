@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { fmtDate, fmtHours, idxToDate } from '../lib/engine'
+import { fmtDate, fmtHours, idxToDate, MARGINAL_DEG, SCREEN } from '../lib/engine'
 import type { Analysis, Dataset, Verdict } from '../lib/types'
 
 const vStyle: Record<Verdict, string> = {
@@ -15,7 +15,7 @@ function Delta({ v, unit = '%', invert = false }: { v: number; unit?: string; in
   return <span className={good ? 'text-both-ink' : 'text-nogo-ink'}>{v > 0 ? '+' : '−'}{Math.round(Math.abs(v))}{unit === 'h' ? ' h' : unit}</span>
 }
 
-function Stat({ label, value, bar, color, delta }: { label: string; value: string; bar?: number; color?: string; delta?: React.ReactNode }) {
+function Stat({ label, value, bar, color, delta, note }: { label: string; value: string; bar?: number; color?: string; delta?: React.ReactNode; note?: React.ReactNode }) {
   return (
     <div className="min-w-0 px-4 py-3">
       <div className="text-xs text-ink-3">{label}</div>
@@ -25,17 +25,19 @@ function Stat({ label, value, bar, color, delta }: { label: string; value: strin
           <motion.div className="h-full rounded-full" style={{ background: color }} initial={false} animate={{ width: `${bar}%` }} transition={{ duration: 0.4, ease: [0.645, 0.045, 0.355, 1] }} />
         </div>
       )}
+      {note && <div className="mt-1.5 text-[11px] leading-snug text-ink-3 tabular">{note}</div>}
       {delta && <div className="mt-1.5 text-xs tabular">{delta}</div>}
     </div>
   )
 }
 
-export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, flush = false }: { ds: Dataset; a: Analysis; slipped: Analysis | null; slipDays: number; needComms: boolean; flush?: boolean }) {
+export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, earthMaskDeg, flush = false }: { ds: Dataset; a: Analysis; slipped: Analysis | null; slipDays: number; needComms: boolean; earthMaskDeg: number; flush?: boolean }) {
   const w = a.firstWindow
   const s = slipped && slipDays > 0 ? slipped : null
   return (
     <section className={`grid overflow-hidden lg:grid-cols-[minmax(260px,1.3fr)_repeat(4,minmax(0,1fr))] ${flush ? 'bg-transparent' : 'rounded-[14px] bg-surface shadow-card'}`}>
       <div className="flex items-start gap-4 border-b border-line p-4 lg:border-b-0 lg:border-r">
+        <div className="flex shrink-0 flex-col items-center gap-1">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={a.verdict}
@@ -46,6 +48,13 @@ export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, flus
             {a.verdict}
           </motion.div>
         </AnimatePresence>
+          <span
+            className="cursor-help text-[10px] font-medium text-ink-3 underline decoration-dotted underline-offset-2"
+            title={`Screening verdict from the team's own defaults, not NASA criteria: GO = need met ${SCREEN.goCoverage}%+ of the mission with no gap over ${SCREEN.goGapH} h; RISKY = ${SCREEN.riskyCoverage}%+ and gaps up to ${SCREEN.riskyGapH} h. For a decision, use the Power check with your lander's numbers.`}
+          >
+            Screening
+          </span>
+        </div>
         <div className="min-w-0">
           <div className="text-xs text-ink-3">{needComms ? 'Power and comms' : 'Power'} window after landing</div>
           {w ? (
@@ -67,8 +76,10 @@ export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, flus
         </div>
       </div>
       <div className="grid grid-cols-2 divide-line sm:grid-cols-4 lg:col-span-4 lg:divide-x [&>*]:border-line max-sm:[&>*:nth-child(-n+2)]:border-b">
-        <Stat label="Sunlight" value={`${Math.round(a.sunPct)}%`} bar={a.sunPct} color="var(--sun)" delta={s && <Delta v={s.sunPct - a.sunPct} />} />
-        <Stat label="Earth in view" value={`${Math.round(a.earthPct)}%`} bar={a.earthPct} color="var(--earth)" delta={s && <Delta v={s.earthPct - a.earthPct} />} />
+        <Stat label="Sunlight" value={`${Math.round(a.sunPct)}%`} bar={a.sunPct} color="var(--sun)" delta={s && <Delta v={s.sunPct - a.sunPct} />}
+          note={a.sunPartialPct >= 0.5 ? `Sun only partly up ${Math.round(a.sunPartialPct)}% of the time` : undefined} />
+        <Stat label="Earth in view" value={`${Math.round(a.earthPct)}%`} bar={a.earthPct} color="var(--earth)" delta={s && <Delta v={s.earthPct - a.earthPct} />}
+          note={a.earthMarginalPct >= 0.5 ? `${Math.round(a.earthMarginalPct)}% marginal: under ${earthMaskDeg > 0 ? earthMaskDeg : MARGINAL_DEG}° above the ridge` : undefined} />
         <Stat label="Both at once" value={`${Math.round(a.bothPct)}%`} bar={a.bothPct} color="var(--both)" delta={s && <Delta v={s.bothPct - a.bothPct} />} />
         <Stat label="Longest blackout" value={fmtHours(a.longestBlackoutH)} delta={s && <Delta v={s.longestBlackoutH - a.longestBlackoutH} unit="h" invert />} />
       </div>
