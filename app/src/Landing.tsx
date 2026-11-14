@@ -85,7 +85,7 @@ const SITES = [
 ]
 
 const FIVE_LINES = [
-  'Hi, I’m Five. Hover over me and I’ll listen.',
+  'Hi, I’m Five. Tap or click me for a Moon fact.',
   'Malapert Massif sees Earth 99.9% of the time.',
   'Haworth sits next to ice, but gets sunlight only 8% of the time.',
   'On the far side, Earth never rises. Chang’e-4 needed a relay satellite.',
@@ -540,7 +540,7 @@ function MeetFive() {
             aria-label="Talk to Five"
           >
             <Five size={260} mode={mode} title="Five" />
-            <span className="absolute bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[13px] font-semibold tracking-[-0.01em] text-[var(--ink-2)]">Hover to get his attention. Click to hear a fact.</span>
+            <span className="absolute bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[13px] font-semibold tracking-[-0.01em] text-[var(--ink-2)]">Tap or click Five to hear a fact.</span>
           </button>
         </Reveal>
         <div className="p-2 sm:p-6 lg:pl-12">
