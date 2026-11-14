@@ -247,6 +247,10 @@ const FEATURE_TYPE: Record<string, string> = {
 
 const shortName = (x: Site) => x.name.replace(/\s*\(.*\)\s*/, '')
 
+/** The opening spin plays once per page load, the first time the globe appears. */
+let introPlayed = false
+const INTRO_SECONDS = 5
+
 function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProps) {
   const { map: tex, normalMap } = useMoonTextures()
   const sunRef = useRef<THREE.DirectionalLight>(null)
@@ -270,6 +274,10 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
   }), [])
   const earthView = useRef(new THREE.Vector3(0, 0, 6))
   const flyTo = useRef(camTarget)
+  // Opening shot: start far out, spin round the whole Moon, then settle over the selected site.
+  const intro = useRef<{ t: number } | null>(
+    introPlayed || (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) ? null : { t: 0 },
+  )
   const lastSite = useRef(site.id)
   const lastViewN = useRef(view.n)
   useEffect(() => {
@@ -278,6 +286,7 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
     const buttonPressed = lastViewN.current !== view.n
     lastSite.current = site.id
     lastViewN.current = view.n
+    if (intro.current && (siteChanged || buttonPressed)) { intro.current = null; introPlayed = true }
     flyTo.current = siteChanged && !buttonPressed ? camTarget : view.kind === 'site' ? camTarget : view.kind === 'earth' ? earthView.current.clone() : poleViews[view.kind]
     flight.current = { t: 0, from: camera.position.clone(), fromTarget: controls.current?.target.clone() ?? new THREE.Vector3() }
   }, [site.id, camera, view, camTarget, poleViews])
@@ -317,9 +326,65 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
     earthView.current.y += 0.35
   }
 
+  // Grabbing the Moon during the opening spin hands control straight over.
+  const { gl } = useThree()
+  useEffect(() => {
+    const el = gl.domElement
+    const stop = () => {
+      if (!intro.current) return
+      intro.current = null
+      introPlayed = true
+      flight.current.t = 1
+      const c = controls.current
+      if (c) { c.target.set(0, 0, 0); c.enabled = true }
+    }
+    el.addEventListener('pointerdown', stop)
+    el.addEventListener('wheel', stop, { passive: true })
+    return () => { el.removeEventListener('pointerdown', stop); el.removeEventListener('wheel', stop) }
+  }, [gl])
+
   useFrame((state, dt) => {
     const f = flight.current
-    if (f.t < 1) {
+    const it = intro.current
+    if (it) {
+      // Clamp the step: a slow first frame (textures decoding) must not skip the whole spin.
+      it.t = Math.min(1, it.t + Math.min(dt, 1 / 30) / INTRO_SECONDS)
+      const F = flyTo.current
+      const rF = F.length(), pF = Math.acos(F.y / rF), aF = Math.atan2(F.x, F.z)
+      // First half: the whole Moon turns in front of you. Second half: dive in and settle over the site.
+      const u = Math.max(0, Math.min(1, (it.t - 0.42) / 0.58))
+      const k = u < 0.5 ? 4 * u ** 3 : 1 - (-2 * u + 2) ** 3 / 2 // ease-in-out-cubic
+      const spin = 1 - (1 - it.t) ** 2.2 // already turning on the first frame, slowing to a stop
+      const r = 7.2 * (rF / 7.2) ** k // log-space zoom reads as a steady dolly
+      const pol = 1.22 + (pF - 1.22) * k // from just above the equator down to the site
+      // Start on the sunlit side (the Sun is real for this date), so the turn shows the lit Moon, then
+      // swing round to the site. Always turn at least a quarter, so it reads as a globe.
+      const aSun = Math.atan2(sunDir.x, sunDir.z)
+      let d = ((aF - aSun + 3 * Math.PI) % (2 * Math.PI)) - Math.PI
+      if (Math.abs(d) < Math.PI / 2) d = (d < 0 ? -1 : 1) * (Math.PI / 2)
+      const az = aF - d * (1 - spin)
+      camera.position.set(r * Math.sin(pol) * Math.sin(az), r * Math.cos(pol), r * Math.sin(pol) * Math.cos(az))
+      const c = controls.current
+      if (c) {
+        c.enabled = false
+        c.target.set(0, 0, 0)
+        c.update()
+      } else {
+        camera.lookAt(lookTarget)
+      }
+      if (it.t >= 1) {
+        camera.position.copy(F)
+        if (c) {
+          c.enableDamping = false
+          c.update()
+          c.enableDamping = true
+          c.enabled = true
+        }
+        intro.current = null
+        introPlayed = true
+        f.t = 1
+      }
+    } else if (f.t < 1) {
       // Fly to the site; the user's orbit controls are paused until the flight lands.
       f.t = Math.min(1, f.t + dt / 1.6)
       const k = f.t < 0.5 ? 4 * f.t ** 3 : 1 - (-2 * f.t + 2) ** 3 / 2 // ease-in-out-cubic
