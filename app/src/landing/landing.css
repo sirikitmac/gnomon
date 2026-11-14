@@ -10,6 +10,14 @@
   --sun-ink: #b6401d;
   --space: #07090d;
   --cream: #fffdf6;
+  --sand: #efe9dc;
+  --nav: rgb(251 248 241 / 0.85);
+  --on-ink: #fffdf6;
+  --card-hi: rgb(255 255 255 / 0.7);
+  --badge-a: #fffdf6;
+  --badge-b: #e9e1cf;
+  --badge-ink: #221f1c;
+  --photo-empty: rgb(34 31 28 / 0.07);
   --five-ink: var(--ink);
   --five-sun: var(--sun);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -20,7 +28,29 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: clip;
+  transition: background-color 300ms ease, color 300ms ease;
 }
+
+/* Dark mode: follows the same saved choice as the app (data-theme on <html>) */
+:root[data-theme="dark"] .lnd {
+  --paper: #0d0e11;
+  --card: #16171b;
+  --card-2: #23242a;
+  --ink: #f1ece2;
+  --ink-2: rgb(241 236 226 / 0.66);
+  --line: rgb(255 255 255 / 0.09);
+  --sand: #1a1b20;
+  --nav: rgb(22 23 27 / 0.78);
+  --on-ink: #0d0e11;
+  --card-hi: rgb(255 255 255 / 0.05);
+  --badge-a: #2a2b31;
+  --badge-b: #1b1c21;
+  --badge-ink: #f1ece2;
+  --photo-empty: rgb(255 255 255 / 0.06);
+  color-scheme: dark;
+}
+html:has(.lnd) { background: #f4efe4; }
+:root[data-theme="dark"]:has(.lnd) { background: #0d0e11; }
 
 .lnd ::selection { background: var(--sun); color: var(--cream); }
 
@@ -68,7 +98,7 @@
 .lnd .pill-sun { background: var(--sun); color: var(--cream); box-shadow: 0 1px 0 rgb(255 255 255 / 0.25) inset, 0 8px 24px -10px rgb(210 80 42 / 0.7); }
 .lnd .pill-sun:hover { background: var(--sun-ink); }
 .lnd .pill-sun .knob { background: var(--cream); color: var(--sun); }
-.lnd .pill-ink { background: var(--ink); color: var(--cream); }
+.lnd .pill-ink { background: var(--ink); color: var(--on-ink); }
 .lnd .pill-ink .knob { background: var(--sun); color: var(--cream); }
 
 .lnd .chip {
@@ -77,7 +107,7 @@
   background: var(--card-2); color: var(--ink);
 }
 
-.lnd .card { background: var(--card); border-radius: 32px; box-shadow: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 0 0 1px var(--line); }
+.lnd .card { background: var(--card); border-radius: 32px; box-shadow: 0 1px 0 var(--card-hi) inset, 0 0 0 1px var(--line); }
 
 .lnd .shot {
   border-radius: 20px; overflow: hidden; background: #fff;
@@ -105,12 +135,51 @@
   --five-ink: #221f1c;
   color: var(--ink);
 }
+:root[data-theme="dark"] .lnd .zone .card, :root[data-theme="dark"] .lnd .zone .light {
+  --ink: #f1ece2;
+  --ink-2: rgb(241 236 226 / 0.66);
+  --card-2: #23242a;
+  --line: rgb(255 255 255 / 0.09);
+  --five-ink: #f1ece2;
+}
+:root[data-theme="dark"] .lnd .space-panel { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07); }
 .lnd .glass {
   border-radius: 32px;
   background: rgb(14 17 24 / 0.62);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.11), 0 30px 80px -40px rgb(0 0 0 / 0.8);
   backdrop-filter: blur(18px) saturate(1.15);
   -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+
+/* Team badges on lanyards */
+.lnd .lnd-strap {
+  background: var(--sun);
+  box-shadow: inset 2px 0 0 rgb(0 0 0 / 0.1), inset -2px 0 0 rgb(0 0 0 / 0.1);
+}
+.lnd .lnd-strap-text {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.04em; line-height: 26px;
+  color: var(--cream);
+}
+.lnd .lnd-badge {
+  background: linear-gradient(165deg, var(--badge-a), var(--badge-b));
+  color: var(--badge-ink);
+  box-shadow:
+    inset 0 0 0 1px var(--card-hi),
+    var(--sx, 0px) 26px 44px -22px rgb(20 16 12 / 0.5),
+    0 2px 5px rgb(20 16 12 / 0.1);
+}
+.lnd .lnd-badge > svg:first-child { opacity: 0.13; }
+.lnd .lnd-badge-team { color: var(--sun); }
+.lnd .lnd-slot { background: var(--card-2); box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.25); }
+.lnd .lnd-photo {
+  background: repeating-linear-gradient(135deg, var(--photo-empty) 0 1px, transparent 1px 7px);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.lnd .lnd-photo img { filter: grayscale(1) contrast(1.06); transition: filter 400ms ease; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .lnd .lnd-badge:hover .lnd-photo img { filter: grayscale(0) contrast(1); }
 }
 
 /* Sites marquee */
@@ -124,7 +193,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .lnd .marquee, .lnd .hint-dot { animation: none; }
-  .lnd .pill, .lnd .pill .knob { transition: none; }
+  .lnd .pill, .lnd .pill .knob, .lnd .lnd-photo img, .lnd { transition: none; }
 }
 
 /* Lenis */
