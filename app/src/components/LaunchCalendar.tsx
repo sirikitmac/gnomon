@@ -10,6 +10,9 @@ const HATCH = 'repeating-linear-gradient(135deg, var(--line-strong) 0 2px, trans
 
 const mixOf = (c: DayCell) => Math.round(30 + 0.7 * c.score.coveragePct)
 
+/** "November 2026" -> "Nov '26", used for the compact phone year view so titles never wrap. */
+const shortLabel = (label: string) => `${label.slice(0, 3)} '${label.slice(-2)}`
+
 function cellBg(c: DayCell): string {
   if (!c.score.complete) return HATCH
   // Intensity by coverage: 30% tint at 0% coverage up to the full colour at 100%.
@@ -39,17 +42,20 @@ const Months = memo(function Months({ ds, months, landingDay, todayDay, roving, 
   onKey: (e: React.KeyboardEvent, idx: number) => void
 }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-x-6 gap-y-5" role="grid" aria-label="Landing days by verdict">
+    <div className="lc-months grid grid-cols-[repeat(auto-fill,minmax(232px,1fr))] gap-x-6 gap-y-5" role="grid" aria-label="Landing days by verdict">
       {months.map((m) => (
-        <div key={m.key} role="rowgroup">
-          <div className="mb-1.5 text-[13px] font-semibold">{m.label}</div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-ink-3" aria-hidden>
+        <div key={m.key} role="rowgroup" className="lc-month">
+          <div className="lc-title mb-1.5 text-[13px] font-semibold">
+            <span className="lc-title-full">{m.label}</span>
+            <span className="lc-title-short" aria-hidden>{shortLabel(m.label)}</span>
+          </div>
+          <div className="lc-week grid grid-cols-7 gap-1 text-center text-[10px] text-ink-3" aria-hidden>
             {WEEK.map((d, i) => <span key={i}>{d}</span>)}
           </div>
-          <div className="mt-1 grid grid-cols-7 gap-1" role="row">
+          <div className="lc-days mt-1 grid grid-cols-7 gap-1" role="row">
             {Array.from({ length: m.lead }, (_, i) => <span key={'l' + i} />)}
             {m.days.map((c, i) => {
-              if (!c) return <span key={i} className="aspect-square rounded-[6px] bg-surface-2/50" />
+              if (!c) return <span key={i} className="lc-cell aspect-square rounded-[6px] bg-surface-2/50" />
               const landing = c.idx === landingDay
               const today = c.idx === todayDay
               return (
@@ -66,11 +72,17 @@ const Months = memo(function Months({ ds, months, landingDay, todayDay, roving, 
                   onMouseLeave={() => onHover(null)}
                   onFocus={() => onHover(c)}
                   onKeyDown={(e) => onKey(e, c.idx)}
-                  className={`relative grid aspect-square place-items-center rounded-[6px] text-[11px] font-medium tabular leading-none transition-transform duration-100 hover:scale-110 focus-visible:z-10 ${cellInk(c)} ${landing ? 'z-[1] ring-2 ring-ink ring-offset-1 ring-offset-surface' : ''}`}
+                  className={`lc-cell relative grid aspect-square place-items-center rounded-[6px] text-[11px] font-medium tabular leading-none transition-transform duration-100 hover:scale-110 focus-visible:z-10 ${cellInk(c)} ${landing ? 'z-[1] ring-2 ring-ink ring-offset-1 ring-offset-surface' : ''}`}
                   style={{ background: cellBg(c) }}
                 >
-                  {label === 'day' ? c.day : c.score.complete ? Math.round(c.score.coveragePct) : '–'}
-                  {today && <span className="absolute bottom-[3px] left-1/2 h-[4px] w-[4px] -translate-x-1/2 rounded-full bg-current" />}
+                  {label === 'day' ? c.day : (
+                    <>
+                      <span className="lc-cov">{c.score.complete ? Math.round(c.score.coveragePct) : '–'}</span>
+                      {/* phone year view: no percentages in the tiny cells, just the date over the heatmap fill */}
+                      <span className="lc-day-alt">{c.day}</span>
+                    </>
+                  )}
+                  {today && <span className="lc-today absolute bottom-[3px] left-1/2 h-[4px] w-[4px] -translate-x-1/2 rounded-full bg-current" />}
                 </button>
               )
             })}
@@ -126,7 +138,7 @@ export default function LaunchCalendar({ ds, site, mission, todayIdx, onPick }: 
   const shown = hover ?? byIdx.get(landingDay) ?? null
   return (
     <div ref={root}>
-      <div className="mb-3 flex min-h-10 flex-wrap items-center gap-x-4 gap-y-1 rounded-[10px] bg-surface-2 px-3 py-2 text-[13px]" aria-live="polite">
+      <div className="lc-summary mb-3 flex min-h-10 flex-wrap items-center gap-x-4 gap-y-1 rounded-[10px] bg-surface-2 px-3 py-2 text-[13px]" aria-live="polite">
         {shown ? (
           <>
             <span className="tabular font-medium">{fmtDay(idxToDate(ds, shown.idx))}</span>
@@ -142,10 +154,10 @@ export default function LaunchCalendar({ ds, site, mission, todayIdx, onPick }: 
             {shown.idx === landingDay && <span className="text-xs text-ink-3">selected landing day</span>}
           </>
         ) : (
-          <span className="text-ink-3">Hover or focus a day to see its verdict. Click to land that day.</span>
+          <span className="text-ink-3"><span className="lc-hint-desk">Hover or focus a day to see its verdict. Click to land that day.</span><span className="lc-hint-mob">Tap a day to see its verdict and land then.</span></span>
         )}
         {stale && <span className="text-xs text-ink-3">Updating…</span>}
-        <div className="ml-auto grid grid-cols-2 gap-0.5 rounded-[9px] bg-surface p-[2px] text-xs shadow-control" role="radiogroup" aria-label="Number shown in each day">
+        <div className="lc-toggle ml-auto grid grid-cols-2 gap-0.5 rounded-[9px] bg-surface p-[2px] text-xs shadow-control" role="radiogroup" aria-label="Number shown in each day">
           {([['day', 'Date'], ['coverage', 'Coverage %']] as const).map(([v, t]) => (
             <button
               key={v}
@@ -163,7 +175,7 @@ export default function LaunchCalendar({ ds, site, mission, todayIdx, onPick }: 
 
       <Months ds={ds} months={months} landingDay={landingDay} todayDay={todayDay} roving={roving} onHover={setHover} onPick={pick} onKey={onKey} label={label} />
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-3">
+      <div className="lc-legend mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-3">
         {(['GO', 'RISKY', 'NO-GO'] as const).map((v) => (
           <span key={v} className="flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-[3px]" style={{ background: `var(${COLOR[v]})` }} />{v}

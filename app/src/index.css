@@ -112,3 +112,43 @@ input[type="range"] { accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   body { transition: none; }
 }
+
+/* Launch calendar: phone-only bits are hidden on desktop. */
+.lc-title-short, .lc-day-alt, .lc-hint-mob { display: none; }
+
+/* Launch calendar on phones (<= 768px): a compact Google Calendar "year view". */
+@media (max-width: 768px) {
+  .lc-summary {
+    position: sticky; top: 0; z-index: 5;
+    min-height: 0; gap: 2px 10px; margin-bottom: 8px; padding: 6px 10px;
+    font-size: 12px;
+    box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.35);
+  }
+  .lc-toggle, .lc-hint-desk, .lc-cov { display: none; }
+  .lc-hint-mob, .lc-day-alt { display: inline; }
+
+  .lc-months {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 8px;
+    padding: 8px 4px;
+    margin-inline: -12px;
+  }
+  .lc-month { min-width: 0; padding: 4px; background: transparent; }
+  .lc-title { font-size: 11px; font-weight: 600; line-height: 1.2; margin-bottom: 4px; white-space: nowrap; text-align: left; }
+  .lc-title-full { display: none; }
+  .lc-title-short { display: inline; }
+  .lc-week { font-size: 8px; line-height: 1; opacity: 0.6; margin-bottom: 2px; gap: 1.5px; }
+  .lc-days { grid-template-columns: repeat(7, 1fr); gap: 1.5px; margin-top: 0; }
+  .lc-cell {
+    display: flex; align-items: center; justify-content: center;
+    aspect-ratio: 1; min-height: 14px; padding: 0;
+    font-size: 9px; line-height: 1; border-radius: 3px;
+  }
+  .lc-today { bottom: 1px; width: 3px; height: 3px; }
+
+  .lc-legend { font-size: 10px; gap: 6px; margin-top: 10px; }
+  .lc-legend > span { gap: 4px; }
+}
+@media (max-width: 359px) {
+  .lc-months { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
