@@ -422,7 +422,7 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
         <div className="max-w-[34ch]">
           <div className="text-[15px] font-semibold text-[#f5f5f7]">No high-resolution terrain for this site</div>
           <p className="mt-2 text-sm leading-relaxed text-[#a2adc2]">
-            {terrain?.meta.reason ?? "The terrain file couldn't be loaded."} Site 3D needs a 5 m or 20 m elevation model; Rocky won't draw a made-up surface.
+            {terrain?.meta.reason ?? "The terrain file couldn't be loaded."} Site 3D needs a 5 m or 20 m elevation model; Lunalit won't draw a made-up surface.
           </p>
         </div>
       </div>
