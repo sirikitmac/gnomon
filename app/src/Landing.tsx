@@ -1,8 +1,9 @@
 import { motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import Lenis from 'lenis'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import GnomonMark from './components/GnomonMark'
 import Five, { type FiveMode } from './landing/Five'
+import AskFive from './landing/AskFive'
 import BlurText from './landing/BlurText'
 import TeamBadges, { type Member } from './landing/TeamBadges'
 import { useTheme } from './lib/theme'
@@ -208,6 +209,14 @@ function ThemeToggle() {
 
 function Nav({ onOpen }: { onOpen: () => void }) {
   const [solid, setSolid] = useState(false)
+  const [askOpen, setAskOpen] = useState(false)
+  const askButton = useRef<HTMLButtonElement>(null)
+  // Pause smooth scrolling while the Ask Five window is open, and give focus back on close.
+  useEffect(() => {
+    if (askOpen) { lenis?.stop(); return }
+    lenis?.start()
+  }, [askOpen])
+  const closeAsk = useCallback(() => { setAskOpen(false); askButton.current?.focus() }, [])
   useEffect(() => {
     const on = () => setSolid(window.scrollY > window.innerHeight * 0.6)
     on()
@@ -238,18 +247,31 @@ function Nav({ onOpen }: { onOpen: () => void }) {
             </li>
           ))}
         </ul>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
+          <button
+            ref={askButton}
+            type="button"
+            onClick={() => setAskOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={askOpen}
+            aria-label="Ask Five"
+            title="Ask Five"
+            className="grid h-11 w-11 place-items-center rounded-full transition-[background-color,transform] duration-150 hover:bg-[var(--card-2)] active:scale-[0.94]"
+          >
+            <Five size={24} title="Ask Five" />
+          </button>
           <ThemeToggle />
           <a
             href="/dashboard"
             onClick={(e) => { if (e.metaKey || e.ctrlKey || e.button !== 0) return; e.preventDefault(); onOpen() }}
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-[14px] font-semibold tracking-[-0.02em] text-[var(--on-ink)] transition-transform duration-150 active:scale-[0.97]"
+            className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full bg-[var(--ink)] px-4 text-[14px] font-semibold tracking-[-0.02em] text-[var(--on-ink)] transition-transform duration-150 active:scale-[0.97] sm:px-5"
           >
-            <span className="h-2 w-2 rounded-full bg-[var(--sun)]" aria-hidden />
+            <span className="hidden h-2 w-2 rounded-full bg-[var(--sun)] min-[400px]:block" aria-hidden />
             Launch app
           </a>
         </div>
       </nav>
+      <AskFive open={askOpen} onClose={closeAsk} />
     </motion.header>
   )
 }
