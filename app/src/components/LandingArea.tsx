@@ -37,7 +37,7 @@ export default function LandingArea({ ds, site, mission, rules }: { ds: Dataset;
           <p className="mt-1 text-[12px] leading-snug text-ink-2">
             The same verdict at every 100 m point within {radius >= 1000 ? `${radius / 1000} km` : `${radius} m`} of the landing point, because a lander can come down anywhere in that circle.
           </p>
-          <div className="mt-3 grid grid-cols-4 gap-0.5 rounded-[9px] bg-surface-2 p-[2px] text-xs" role="radiogroup" aria-label="Landing area radius">
+          <div className="mt-3 grid grid-cols-4 gap-0.5 rounded-full bg-surface-2 p-[2px] text-xs" role="radiogroup" aria-label="Landing area radius">
             {RADII.map((r) => (
               <button
                 key={r}
@@ -45,7 +45,7 @@ export default function LandingArea({ ds, site, mission, rules }: { ds: Dataset;
                 role="radio"
                 aria-checked={radius === r}
                 onClick={() => setRadius(r)}
-                className={`rounded-[7px] px-1 py-1.5 tabular transition-[background-color,color,box-shadow] duration-150 ${radius === r ? 'bg-surface font-medium text-ink shadow-control' : 'text-ink-2 hover:text-ink'}`}
+                className={`rounded-full px-1 py-1.5 tabular transition-[background-color,color,box-shadow] duration-150 ${radius === r ? 'bg-surface font-medium text-ink shadow-control' : 'text-ink-2 hover:text-ink'}`}
               >
                 {r >= 1000 ? `${r / 1000} km` : `${r} m`}
               </button>

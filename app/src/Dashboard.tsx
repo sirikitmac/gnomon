@@ -43,7 +43,7 @@ function readMoonMode(): MoonMode {
 /** "Globe | Site 3D" switch for the Moon panel, styled like the panel's other dark controls. */
 function MoonModeSwitch({ value, onChange }: { value: MoonMode; onChange: (m: MoonMode) => void }) {
   return (
-    <div role="radiogroup" aria-label="Moon view" className="pointer-events-auto absolute left-8 top-3 z-20 flex rounded-md bg-[#0f1626]/80 p-0.5 ring-1 ring-white/15 backdrop-blur">
+    <div role="radiogroup" aria-label="Moon view" className="pointer-events-auto absolute left-8 top-3 z-20 flex rounded-full bg-[#0e1118]/75 p-0.5 ring-1 ring-white/15 backdrop-blur">
       {([['globe', 'Globe', 'The whole Moon with every site'], ['site3d', 'Site 3D', 'Real terrain around the selected site, lit at the mission time']] as const).map(([m, label, title]) => (
         <button
           key={m}
@@ -52,7 +52,7 @@ function MoonModeSwitch({ value, onChange }: { value: MoonMode; onChange: (m: Mo
           aria-checked={value === m}
           title={title}
           onClick={() => onChange(m)}
-          className={`min-h-7 rounded-[5px] px-2.5 text-xs font-medium transition-colors duration-150 ${value === m ? 'bg-[#e5e9f1] text-[#0f1626]' : 'text-[#c9d1e0] hover:text-white'}`}
+          className={`min-h-7 rounded-full px-3 text-xs font-medium transition-colors duration-150 ${value === m ? 'bg-[#fbf8f1] text-[#221f1c]' : 'text-[#d9d3c7] hover:text-white'}`}
         >
           {label}
         </button>
@@ -477,7 +477,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
       <div ref={stageRef} className="relative flex min-h-0 flex-1 overflow-hidden bg-[#05070c]" style={stageVars}>
         {/* Fullscreen 3D Moon / Site 3D viewport (Google Maps style background layer) */}
         <section id="moon-view" className="absolute inset-0 z-0 overflow-hidden bg-[#05070c]">
-          <Suspense fallback={<div className="grid h-full place-items-center text-sm text-[#a2adc2]">{moonMode === 'globe' ? 'Loading Moon…' : 'Loading terrain…'}</div>}>
+          <Suspense fallback={<div className="grid h-full place-items-center text-sm text-[#b3ac9f]">{moonMode === 'globe' ? 'Loading Moon…' : 'Loading terrain…'}</div>}>
             {moonMode === 'globe'
               ? <MoonScene site={site} sites={ds.sites} idx={cur} time={idxToDate(ds, cur)} onSelect={setSiteId} />
               : <SiteScene
@@ -588,7 +588,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                 <div ref={middleRef} className="pointer-events-none relative min-h-0 flex-1">
                   <MoonModeSwitch value={moonMode} onChange={setMoonMode} />
                   {moonMode === 'globe' && (
-                    <div className="pointer-events-none absolute bottom-3 left-8 flex flex-wrap gap-4 text-xs text-[#a2adc2]">
+                    <div className="pointer-events-none absolute bottom-3 left-8 flex flex-wrap gap-4 text-xs text-[#b3ac9f]">
                       <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
                       <span title="Earth and Sun are shown at their true sizes and directions from Horizons. Earth is at its real distance; the Sun is drawn closer but at its true apparent size. Earth's turn and cloud cover are illustrative.">Earth and Sun to scale</span>
                     </div>

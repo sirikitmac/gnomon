@@ -329,7 +329,7 @@ function World({ els, site, terrain, idx, exag, showExposure, showArea, metric, 
 
 function Segmented<T extends string | number>({ value, options, onChange, label }: { value: T; options: [T, string][]; onChange: (v: T) => void; label: string }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-md bg-[#0f1626]/85 p-0.5 ring-1 ring-white/15">
+    <div role="radiogroup" aria-label={label} className="flex rounded-full bg-[#0e1118]/80 p-0.5 ring-1 ring-white/15">
       {options.map(([v, text]) => (
         <button
           key={String(v)}
@@ -337,7 +337,7 @@ function Segmented<T extends string | number>({ value, options, onChange, label 
           role="radio"
           aria-checked={v === value}
           onClick={() => onChange(v)}
-          className={`min-h-7 rounded-[5px] px-2 text-xs font-medium transition-colors duration-150 ${v === value ? 'bg-[#e5e9f1] text-[#0f1626]' : 'text-[#c9d1e0] hover:text-white'}`}
+          className={`min-h-7 rounded-full px-2.5 text-xs font-medium transition-colors duration-150 ${v === value ? 'bg-[#fbf8f1] text-[#221f1c]' : 'text-[#d9d3c7] hover:text-white'}`}
         >
           {text}
         </button>
@@ -347,8 +347,8 @@ function Segmented<T extends string | number>({ value, options, onChange, label 
 }
 
 const btn = (on: boolean) =>
-  `pointer-events-auto rounded-md px-2.5 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
-    on ? 'bg-[#e5e9f1] text-[#0f1626] ring-transparent' : 'bg-[#0f1626]/80 text-[#e5e9f1] ring-white/15 hover:bg-[#1d2a44]'
+  `pointer-events-auto rounded-full px-3 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
+    on ? 'bg-[#fbf8f1] text-[#221f1c] ring-transparent' : 'bg-[#0e1118]/80 text-[#f1ece2] ring-white/15 hover:bg-[#1d2a44]'
   }`
 
 /**
@@ -415,13 +415,13 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
   const ex = terrain?.meta.exposure
   const area = useMemo(() => (ex && showArea ? areaAtLeast(ex[METRIC_KEY[metric]], ex.n, ex.spacing_m, threshold) : null), [ex, showArea, metric, threshold])
 
-  if (loading) return <div className="grid h-full place-items-center text-sm text-[#a2adc2]">Loading terrain…</div>
+  if (loading) return <div className="grid h-full place-items-center text-sm text-[#b3ac9f]">Loading terrain…</div>
   if (!terrain || !terrain.meta.available || !terrain.meta.terrain || !ex) {
     return (
       <div className="grid h-full place-items-center p-6 text-center">
         <div className="max-w-[34ch]">
           <div className="text-[15px] font-semibold text-[#f5f5f7]">No high-resolution terrain for this site</div>
-          <p className="mt-2 text-sm leading-relaxed text-[#a2adc2]">
+          <p className="mt-2 text-sm leading-relaxed text-[#b3ac9f]">
             {terrain?.meta.reason ?? "The terrain file couldn't be loaded."} Site 3D needs a 5 m or 20 m elevation model; Gnomon won't draw a made-up surface.
           </p>
         </div>
@@ -451,7 +451,7 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div ref={setEl('landing')} className="absolute left-0 top-0 whitespace-nowrap rounded-full bg-[#3ddc97] px-2 py-0.5 text-[11px] font-medium text-[#04140d] shadow" style={{ opacity: 0 }}>Landing point</div>
         {['N', 'E', 'S', 'W'].map((l) => (
-          <div key={l} ref={setEl(l)} className="absolute left-0 top-0 select-none text-[13px] font-semibold text-[#e5e9f1]/85 [text-shadow:0_1px_3px_#000]" style={{ opacity: 0 }}>{l}</div>
+          <div key={l} ref={setEl(l)} className="absolute left-0 top-0 select-none text-[13px] font-semibold text-[#f1ece2]/85 [text-shadow:0_1px_3px_#000]" style={{ opacity: 0 }}>{l}</div>
         ))}
         <div ref={setEl('sun')} className="absolute left-0 top-0 text-[11px] text-[#ffe7a3] [text-shadow:0_1px_3px_#000]" style={{ opacity: 0 }}>Sun</div>
         <div ref={setEl('earth')} className="absolute left-0 top-0 text-[11px] text-[#9cc2ff] [text-shadow:0_1px_3px_#000]" style={{ opacity: 0 }}>Earth</div>
@@ -479,7 +479,7 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
       </div>
 
       <div
-        className="absolute z-20 flex flex-col gap-1.5 rounded-[10px] bg-[#0b0f18]/80 p-2 text-[11px] text-[#a2adc2] ring-1 ring-white/10 backdrop-blur transition-[left,right,bottom] duration-200"
+        className="absolute z-20 flex flex-col gap-1.5 rounded-[10px] bg-[#0b0f18]/80 p-2 text-[11px] text-[#b3ac9f] ring-1 ring-white/10 backdrop-blur transition-[left,right,bottom] duration-200"
         style={{
           left: 'calc(var(--map-left, 0px) + 12px)',
           right: 'calc(var(--map-right, 0px) + 12px)',
@@ -494,7 +494,7 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
                 onClick={play.toggle}
                 aria-pressed={play.playing}
                 title="Timelapse of the mission: watch the Sun and Earth move and the shadows sweep the site"
-                className="flex h-7 items-center gap-1.5 rounded-md bg-[#e5e9f1] px-2.5 text-xs font-medium text-[#0f1626] transition-transform duration-100 active:scale-[0.97]"
+                className="flex h-7 items-center gap-1.5 rounded-full bg-[#fbf8f1] px-3 text-xs font-medium text-[#221f1c] transition-transform duration-100 active:scale-[0.97]"
               >
                 {play.playing ? (
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden><rect x="1.5" y="1" width="2.5" height="8" rx="0.5" /><rect x="6" y="1" width="2.5" height="8" rx="0.5" /></svg>
@@ -504,7 +504,7 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
                 {play.playing ? 'Pause' : 'Play mission'}
               </button>
               <Segmented label="Playback speed" value={play.speed} onChange={play.setSpeed} options={[[1, '1 day/s'], [4, '4 days/s']]} />
-              {timeLabel && <span className="tabular text-[#e5e9f1]">{timeLabel}</span>}
+              {timeLabel && <span className="tabular text-[#f1ece2]">{timeLabel}</span>}
             </>
           )}
           <Segmented label="Vertical exaggeration" value={exag} onChange={setExag} options={[[1, '1×'], [2, '2×'], [3, '3×']]} />
@@ -515,7 +515,7 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
             <label className="flex items-center gap-2">
               <span className="sr-only">Threshold</span>
               <input type="range" min={10} max={95} step={5} value={threshold} onChange={(e) => setThreshold(+e.target.value)} className="w-24 sm:w-32" aria-label="Sunlit area threshold" />
-              <span className="tabular text-[#e5e9f1]">≥{threshold}%</span>
+              <span className="tabular text-[#f1ece2]">≥{threshold}%</span>
             </label>
           )}
           <span className="flex items-center gap-3">
@@ -539,7 +539,7 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
             {area !== null && (
               <span className="flex items-center gap-1.5 text-[#f5f5f7]">
                 <span className="h-0.5 w-4 bg-[#ff3b30]" aria-hidden />
-                ≥{threshold}% {ml.lit}: {area > 0 ? `≈${area.toFixed(2)} km²` : 'none'} <span className="text-[#a2adc2]">{area > 0 ? 'of' : 'in'} the 3 × 3 km grid</span>
+                ≥{threshold}% {ml.lit}: {area > 0 ? `≈${area.toFixed(2)} km²` : 'none'} <span className="text-[#b3ac9f]">{area > 0 ? 'of' : 'in'} the 3 × 3 km grid</span>
               </span>
             )}
           </div>

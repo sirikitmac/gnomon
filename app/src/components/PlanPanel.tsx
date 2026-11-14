@@ -37,7 +37,7 @@ export default function PlanPanel({ ds, mission, siteId, todayIdx, active, onAct
           Search all {ds.sites.length} sites and every landing time (every 6 hours) for a {Math.round(mission.durationH / 24)}-day mission
           {mission.needComms ? ' that needs Sun and Earth' : ' that needs Sun'}, and get the five best options.
         </p>
-        <button onClick={onActivate} className="min-h-10 rounded-[8px] bg-accent px-4 py-2 text-[13px] font-medium text-on-accent shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 ease-out hover:brightness-105 active:scale-[0.97]">
+        <button onClick={onActivate} className="min-h-10 rounded-full bg-accent px-4 py-2 text-[13px] font-medium text-on-accent shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 ease-out hover:brightness-105 active:scale-[0.97]">
           Plan it for me
         </button>
       </div>
