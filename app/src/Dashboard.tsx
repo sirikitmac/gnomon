@@ -126,6 +126,26 @@ function PageHead({ title, text }: { title: string; text: string }) {
 
 const idxDay = (ds: Dataset, i: number) => idxToDate(ds, i).toISOString().slice(0, 10)
 
+const PHONE_QUERY = '(max-width: 767px)'
+const isPhoneNow = () => typeof window !== 'undefined' && window.matchMedia(PHONE_QUERY).matches
+/** True on phone-width screens; the mission view starts with its panels closed there so the Moon stays visible. */
+function useIsPhone() {
+  const [phone, setPhone] = useState(isPhoneNow)
+  useEffect(() => {
+    const mq = window.matchMedia(PHONE_QUERY)
+    const on = () => setPhone(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return phone
+}
+
+const VERDICT_CHIP: Record<string, string> = {
+  GO: 'bg-both text-white dark:text-bg',
+  RISKY: 'bg-risk text-white dark:text-bg',
+  'NO-GO': 'bg-nogo text-white dark:text-bg',
+}
+
 export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => void }) {
   const [rawDs, setDs] = useState<Dataset | null>(null)
   const [sunMode, setSunMode] = useState<SunMode>(DEFAULT_RULES.sunMode)
@@ -152,8 +172,12 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
   // Google-Maps-style collapsible edge panels
   const [leftOpen, setLeftOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1024)
   const [rightOpen, setRightOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1280)
-  const [topOpen, setTopOpen] = useState(true)
-  const [bottomOpen, setBottomOpen] = useState(true)
+  const isPhone = useIsPhone()
+  const [topOpen, setTopOpen] = useState(() => !isPhoneNow())
+  const [bottomOpen, setBottomOpen] = useState(() => !isPhoneNow())
+  // On a phone only one side panel at a time: opening one closes the other.
+  const toggleLeft = () => { const n = !leftOpen; setLeftOpen(n); if (n && isPhone) setRightOpen(false) }
+  const toggleRight = () => { const n = !rightOpen; setRightOpen(n); if (n && isPhone) setLeftOpen(false) }
   const [overlayOpen, setOverlayOpen] = useState(true)
 
   const stageRef = useRef<HTMLDivElement>(null)
@@ -178,10 +202,18 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
   }, [])
   const navigateToTarget = useCallback((target: string) => {
     const v = TARGET_VIEW[target]
-    setLeftOpen(true)
-    setRightOpen(true)
-    setTopOpen(true)
-    setBottomOpen(true)
+    if (isPhoneNow()) {
+      // Phone: open only the panel that holds the step's target, so the Moon stays in view.
+      setLeftOpen(target === 'slip-test')
+      setRightOpen(false)
+      setTopOpen(target === 'verdict')
+      setBottomOpen(target === 'timeline')
+    } else {
+      setLeftOpen(true)
+      setRightOpen(true)
+      setTopOpen(true)
+      setBottomOpen(true)
+    }
     setOverlayOpen(true)
     if (v) setViewState((cur) => { if (cur !== v) { history.replaceState(history.state, '', `${location.pathname}${location.search}${v === 'mission' ? '' : '#' + v}`) } return v })
   }, [])
@@ -311,7 +343,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
             id="learn-button"
             onClick={() => {
               setLearnOn((v) => {
-                if (!v) {
+                if (!v && !isPhoneNow()) {
                   setLeftOpen(true)
                   setRightOpen(true)
                   setTopOpen(true)
@@ -462,11 +494,11 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
         {/* Floating Full-Edged UI Layer over the Fullscreen Moon View */}
         <div className="pointer-events-none relative z-10 flex h-full w-full overflow-hidden">
           {/* Left Full-Edged Collapsible Sidebar: Landing site & Mission */}
-          <div className={`pointer-events-auto relative z-30 flex h-full shrink-0 transition-[width] duration-200 ease-out ${leftOpen ? 'w-[300px] sm:w-[320px]' : 'w-0'}`}>
+          <div className={`pointer-events-auto relative z-30 flex h-full shrink-0 transition-[width] duration-200 ease-out max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-40 ${leftOpen ? 'w-[300px] max-md:w-[calc(100vw-40px)] sm:w-[320px]' : 'w-0'}`}>
             <div className="h-full w-full overflow-hidden">
               <aside
                 aria-label="Landing site and mission controls"
-                className={`flex h-full w-[300px] flex-col overflow-y-auto border-r border-line bg-surface/92 shadow-pop backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-200 ease-out sm:w-[320px] ${leftOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                className={`flex h-full w-[300px] flex-col overflow-y-auto border-r border-line bg-surface/92 shadow-pop backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-200 ease-out max-md:w-[calc(100vw-40px)] max-md:bg-surface/97 sm:w-[320px] ${leftOpen ? 'translate-x-0' : '-translate-x-full'}`}
               >
                 <SidebarSection title="Landing site">
                   <SitePicker sites={ds.sites} value={site.id} onChange={setSiteId} />
@@ -493,7 +525,8 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
             </div>
             <button
               type="button"
-              onClick={() => setLeftOpen((v) => !v)}
+              onClick={toggleLeft}
+              hidden={isPhone && rightOpen}
               aria-expanded={leftOpen}
               aria-label={leftOpen ? 'Collapse mission sidebar' : 'Expand mission sidebar'}
               title={leftOpen ? 'Collapse mission sidebar' : 'Expand mission sidebar'}
@@ -521,12 +554,27 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                       <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} earthMaskDeg={earthMaskDeg} flush />
                     </div>
                   )}
+                  {isPhone && !topOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setTopOpen(true)}
+                      aria-expanded={false}
+                      aria-label={`Verdict ${a.verdict} for ${site.name}, ${Math.round(mission.durationH / 24)} days. Show details`}
+                      className="flex h-11 w-full items-center gap-2.5 border-b border-line bg-surface/92 px-3 text-left shadow-pop backdrop-blur-2xl backdrop-saturate-150"
+                    >
+                      <span className={`rounded-md px-2 py-0.5 font-display text-[13px] font-semibold ${VERDICT_CHIP[a.verdict]}`}>{a.verdict}</span>
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{site.name}</span>
+                      <span className="shrink-0 text-[12px] tabular text-ink-3">{Math.round(mission.durationH / 24)} d · sun {Math.round(a.sunPct)}%</span>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-ink-3" aria-hidden><path d="M4 6l4 4 4-4" /></svg>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setTopOpen((v) => !v)}
                     aria-expanded={topOpen}
                     aria-label={topOpen ? 'Collapse verdict bar' : 'Expand verdict bar'}
                     title={topOpen ? 'Collapse verdict bar' : 'Expand verdict bar'}
+                    hidden={isPhone && !topOpen}
                     className="absolute -bottom-6 left-1/2 z-30 flex h-6 -translate-x-1/2 items-center gap-1.5 rounded-b-lg border border-t-0 border-line bg-surface/95 px-3 text-[11px] font-medium text-ink-2 shadow-pop backdrop-blur-xl transition-colors hover:bg-surface-2 hover:text-ink"
                   >
                     <span>Verdict: {a.verdict}</span>
@@ -549,8 +597,23 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
 
                 {/* Bottom Full-Edged Collapsible Timeline Bar */}
                 <div className="pointer-events-auto relative z-20 shrink-0">
+                  {isPhone && !bottomOpen && (
+                    <div className="flex h-12 items-center gap-2.5 border-t border-line bg-surface/92 pl-3 pr-1.5 shadow-pop backdrop-blur-2xl backdrop-saturate-150">
+                      <input type="range" className="min-w-0 flex-1" aria-label="Mission time" min={a.startIdx} max={a.endIdx - 1} value={cur} onChange={(e) => setCursor(+e.target.value)} />
+                      <span className="w-16 shrink-0 text-right text-[12px] tabular text-ink-2">T+{fmtHours((cur - a.startIdx) * ds.meta.stepHours)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setBottomOpen(true)}
+                        aria-label="Expand timeline"
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 10l4-4 4 4" /></svg>
+                      </button>
+                    </div>
+                  )}
                   <button
                     type="button"
+                    hidden={isPhone && !bottomOpen}
                     onClick={() => setBottomOpen((v) => !v)}
                     aria-expanded={bottomOpen}
                     aria-label={bottomOpen ? 'Collapse timeline' : 'Expand timeline'}
@@ -580,10 +643,11 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
               </div>
 
               {/* Right Full-Edged Collapsible Sidebar: Site Brief */}
-              <div className={`pointer-events-auto relative z-30 flex h-full shrink-0 transition-[width] duration-200 ease-out ${rightOpen ? 'w-[300px] sm:w-[320px]' : 'w-0'}`}>
+              <div className={`pointer-events-auto relative z-30 flex h-full shrink-0 transition-[width] duration-200 ease-out max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-40 ${rightOpen ? 'w-[300px] max-md:w-[calc(100vw-40px)] sm:w-[320px]' : 'w-0'}`}>
                 <button
                   type="button"
-                  onClick={() => setRightOpen((v) => !v)}
+                  onClick={toggleRight}
+                  hidden={isPhone && leftOpen}
                   aria-expanded={rightOpen}
                   aria-label={rightOpen ? 'Collapse site brief sidebar' : 'Expand site brief sidebar'}
                   title={rightOpen ? 'Collapse site brief sidebar' : 'Expand site brief sidebar'}
@@ -596,7 +660,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                 <div className="h-full w-full overflow-hidden">
                   <aside
                     aria-label="Selected site details"
-                    className={`h-full w-[300px] overflow-y-auto border-l border-line bg-surface/92 shadow-pop backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-200 ease-out sm:w-[320px] ${rightOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                    className={`h-full w-[300px] overflow-y-auto border-l border-line bg-surface/92 shadow-pop backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-200 ease-out max-md:w-[calc(100vw-40px)] max-md:bg-surface/97 sm:w-[320px] ${rightOpen ? 'translate-x-0' : 'translate-x-full'}`}
                   >
                     <SiteBrief ds={ds} site={site} idx={cur} flush />
                     <LandingArea ds={ds} site={site} mission={mission} rules={{ sunMode, earthMaskDeg }} />

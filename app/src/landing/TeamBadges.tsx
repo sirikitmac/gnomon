@@ -1,4 +1,4 @@
-import { motion, useReducedMotion, useSpring, useTransform } from 'framer-motion'
+import { motion, useInView, useReducedMotion, useSpring, useTransform } from 'framer-motion'
 import { useEffect, useRef } from 'react'
 import GnomonMark from '../components/GnomonMark'
 
@@ -71,6 +71,10 @@ function Badge({ m, i }: { m: Member; i: number }) {
   const rot = useSpring(0, { stiffness: 90, damping: 7, mass: 1.1 })
   const shadowX = useTransform(rot, (r) => `${-r * 0.5}px`)
   const pivot = useRef<HTMLDivElement>(null)
+  // Watch an untransformed wrapper: the dropping element starts far above its slot, and inside the
+  // overflow-hidden team section the top-row badges would be clipped out and never count as in view.
+  const anchor = useRef<HTMLDivElement>(null)
+  const inView = useInView(anchor, { once: true, margin: '0px 0px -10% 0px' })
   const dragging = useRef(false)
   const settle = useRef<number | undefined>(undefined)
   const strap = STRAPS[i % STRAPS.length]
@@ -101,11 +105,10 @@ function Badge({ m, i }: { m: Member; i: number }) {
   }
 
   return (
+    <div ref={anchor} className="flex shrink-0 snap-center justify-center">
     <motion.div
-      className="flex shrink-0 snap-center justify-center"
       initial={reduce ? false : { y: -(strap + 300) }}
-      whileInView={{ y: 0 }}
-      viewport={{ once: true, margin: '0px 0px -10% 0px' }}
+      animate={inView ? { y: 0 } : undefined}
       transition={{ type: 'spring', stiffness: 70, damping: 11, mass: 1, delay: 0.1 + i * 0.09 }}
       onAnimationComplete={() => nudge(i % 2 ? -7 : 7)}
     >
@@ -158,6 +161,7 @@ function Badge({ m, i }: { m: Member; i: number }) {
         </motion.article>
       </motion.div>
     </motion.div>
+    </div>
   )
 }
 
