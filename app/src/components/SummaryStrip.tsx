@@ -35,7 +35,7 @@ export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, eart
   const w = a.firstWindow
   const s = slipped && slipDays > 0 ? slipped : null
   return (
-    <section className={`grid overflow-hidden lg:grid-cols-[minmax(300px,1.6fr)_repeat(4,minmax(0,1fr))] ${flush ? 'bg-transparent' : 'rounded-[14px] bg-surface shadow-card'}`}>
+    <section className={`grid overflow-hidden lg:grid-cols-[minmax(300px,1.45fr)_repeat(4,minmax(0,1fr))] ${flush ? 'bg-transparent' : 'rounded-[14px] bg-surface shadow-card'}`}>
       <div className="flex items-start gap-4 border-b border-line p-4 lg:border-b-0 lg:border-r">
         <div className="flex shrink-0 flex-col items-center gap-1">
         <AnimatePresence mode="popLayout" initial={false}>
@@ -58,7 +58,7 @@ export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, eart
         <div className="min-w-0">
           {w ? (
             <>
-              <div className="font-display text-[21px] font-medium leading-[1.15] tabular">
+              <div className="font-display text-[19px] font-medium leading-[1.2] tabular">
                 {needComms ? 'Power and comms' : 'Power'} for {fmtHours((w.to - w.from) * ds.meta.stepHours)} straight
               </div>
               <div className="mt-1 text-xs text-ink-2 tabular">
@@ -67,7 +67,7 @@ export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, eart
               </div>
             </>
           ) : (
-            <div className="font-display text-[21px] font-medium leading-[1.15] text-nogo-ink">No {needComms ? 'power and comms' : 'power'} window in the data range</div>
+            <div className="font-display text-[19px] font-medium leading-[1.2] text-nogo-ink">No {needComms ? 'power and comms' : 'power'} window in the data range</div>
           )}
           {s && (
             <div className="mt-1.5 text-xs">
@@ -79,7 +79,7 @@ export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, eart
       </div>
       <div className="grid grid-cols-2 divide-line sm:grid-cols-4 lg:col-span-4 lg:divide-x [&>*]:border-line max-sm:[&>*:nth-child(-n+2)]:border-b">
         <Stat label="Sunlight" value={`${Math.round(a.sunPct)}%`} bar={a.sunPct} color="var(--sun)" delta={s && <Delta v={s.sunPct - a.sunPct} />}
-          note={a.sunPartialPct >= 0.5 ? `Part of the Sun hidden by the ridge ${Math.round(a.sunPartialPct)}% of the time` : undefined} />
+          note={a.sunPartialPct >= 0.5 ? `Ridge clips the Sun ${Math.round(a.sunPartialPct)}% of the time` : undefined} />
         <Stat label="Earth in view" value={`${Math.round(a.earthPct)}%`} bar={a.earthPct} color="var(--earth)" delta={s && <Delta v={s.earthPct - a.earthPct} />}
           note={a.earthMarginalPct >= 0.5 ? `${Math.round(a.earthMarginalPct)}% marginal: under ${earthMaskDeg > 0 ? earthMaskDeg : MARGINAL_DEG}° above the ridge` : undefined} />
         <Stat label="Both at once" value={`${Math.round(a.bothPct)}%`} bar={a.bothPct} color="var(--both)" delta={s && <Delta v={s.bothPct - a.bothPct} />} />

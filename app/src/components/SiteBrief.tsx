@@ -55,20 +55,29 @@ export default function SiteBrief({ ds, site, idx, flush = false }: { ds: Datase
       <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
         <dt className="text-ink-3">Location</dt>
         <dd className="tabular">{Math.abs(site.lat).toFixed(2)}°{site.lat < 0 ? 'S' : 'N'}, {Math.abs(site.lonEast).toFixed(2)}°{site.lonEast < 0 ? 'W' : 'E'}</dd>
-        <dt className="text-ink-3">Source</dt>
-        <dd>{site.source}</dd>
-        {site.frame && (
-          <>
-            <dt className="text-ink-3">Frame</dt>
-            <dd title={site.frameNote}>{site.frame === 'ME' ? 'Mean Earth (same as LOLA and Horizons)' : 'Not stated by the source'}</dd>
-          </>
-        )}
-        <dt className="text-ink-3">Terrain</dt>
-        <dd>{site.terrain}</dd>
         <dt className="text-ink-3">Confidence</dt>
         <dd>{confidenceLabel(site)}</dd>
         <NearbySun site={site} />
       </dl>
+
+      <details className="group mt-4 rounded-[12px] bg-surface-2/60 px-3.5 py-2.5 text-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-medium text-ink-2 transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
+          Data sources
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-open:rotate-180" aria-hidden><path d="M4 6l4 4 4-4" /></svg>
+        </summary>
+        <dl className="mt-2.5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px] leading-snug">
+          <dt className="text-ink-3">Site</dt>
+          <dd className="break-words">{site.source}</dd>
+          {site.frame && (
+            <>
+              <dt className="text-ink-3">Frame</dt>
+              <dd title={site.frameNote}>{site.frame === 'ME' ? 'Mean Earth (same as LOLA and Horizons)' : 'Not stated by the source'}</dd>
+            </>
+          )}
+          <dt className="text-ink-3">Terrain</dt>
+          <dd>{site.terrain}</dd>
+        </dl>
+      </details>
 
       <div className="mt-auto pt-5">
         <div className="flex items-baseline justify-between border-b border-line pb-2">
