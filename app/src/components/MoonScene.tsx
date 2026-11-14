@@ -473,6 +473,67 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay, onReady }: 
   )
 }
 
+const VIEWS = [
+  ['site', 'Recenter on the site', 'Fly back to the selected site'],
+  ['south', 'South pole', 'Look straight down on the south pole'],
+  ['north', 'North pole', 'Look straight down on the north pole'],
+  ['earth', 'Earth view', 'Look past the Moon at Earth: real size, real distance, real phase'],
+] as const
+
+/** One "View" menu for the globe: camera presets and the two layers, instead of a row of floating buttons. */
+function ViewMenu({ showFeatures, onFeatures, milkyWay, onMilkyWay, go }: {
+  showFeatures: boolean; onFeatures: () => void; milkyWay: boolean; onMilkyWay: () => void; go: (k: ViewKind) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('pointerdown', onDown); window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [open])
+  const item = 'flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-left text-[13px] font-medium text-[#f1ece2] transition-colors duration-150 hover:bg-white/10'
+  const check = (on: boolean) => (
+    <span className={`grid h-4 w-7 shrink-0 rounded-full p-0.5 transition-colors duration-150 ${on ? 'bg-[#fbf8f1]' : 'bg-white/20'}`} aria-hidden>
+      <span className={`h-3 w-3 rounded-full transition-transform duration-150 ${on ? 'translate-x-3 bg-[#221f1c]' : 'bg-[#f1ece2]'}`} />
+    </span>
+  )
+  return (
+    <div ref={root} className="pointer-events-auto relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={`flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${open ? 'bg-[#fbf8f1] text-[#221f1c] ring-transparent' : 'bg-[#14120f]/80 text-[#f1ece2] ring-white/15 hover:bg-[#2a2622]'}`}
+      >
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="8" cy="8" r="6" /><path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12" /></svg>
+        View
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} aria-hidden><path d="M4 6l4 4 4-4" /></svg>
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-11 w-[240px] rounded-[16px] bg-[#14120f]/92 p-1.5 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_20px_50px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+          <div className="px-3 pb-1 pt-1.5 text-[11px] font-medium text-[#a39c90]">Camera</div>
+          {VIEWS.map(([kind, label, title]) => (
+            <button key={kind} type="button" role="menuitem" title={title} className={item} onClick={() => { go(kind); setOpen(false) }}>{label}</button>
+          ))}
+          <div className="mx-3 my-1.5 h-px bg-white/10" />
+          <div className="px-3 pb-1 pt-0.5 text-[11px] font-medium text-[#a39c90]">Show</div>
+          <button type="button" role="menuitemcheckbox" aria-checked={showFeatures} className={item} onClick={onFeatures}
+            title="Official names of craters, seas, mountains and valleys from the IAU Gazetteer (USGS). Zoom in to see more; click a name for details.">
+            Moon names {check(showFeatures)}
+          </button>
+          <button type="button" role="menuitemcheckbox" aria-checked={milkyWay} className={item} onClick={onMilkyWay}
+            title="Show the real star sky from NASA's star map, Milky Way included, turned to where it really is on this date. Downloads about 1 MB the first time.">
+            Milky Way {check(milkyWay)}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const MILKY_WAY_KEY = 'rocky.milkyWay'
 
 /** Milky Way background on or off. Off by default everywhere; the choice is remembered per device. */
@@ -562,40 +623,13 @@ export default function MoonScene(props: Props) {
           top: 'calc(var(--map-top, 0px) + 12px)',
         }}
       >
-        <span className="hidden rounded-full bg-[#0e1118]/70 px-3 py-1 text-[11px] text-[#b3ac9f] backdrop-blur xl:inline">Drag to rotate, scroll to zoom</span>
-        <button
-          type="button"
-          aria-pressed={showFeatures}
-          onClick={() => { setShowFeatures((v) => !v); setPicked(null) }}
-          title="Official names of craters, seas, mountains and valleys from the IAU Gazetteer (USGS). Zoom in to see more; click a name for details."
-          className={`pointer-events-auto rounded-full px-3 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
-            showFeatures ? 'bg-[#fbf8f1] text-[#221f1c] ring-transparent' : 'bg-[#0e1118]/80 text-[#f1ece2] ring-white/15 hover:bg-[#1d2a44]'
-          }`}
-        >
-          Moon names
-        </button>
-        <button
-          type="button"
-          aria-pressed={milkyWay}
-          onClick={() => setMilkyWay(!milkyWay)}
-          title="Show the real star sky from NASA's star map, Milky Way included, turned to where it really is on this date. Downloads about 1 MB the first time."
-          className={`pointer-events-auto rounded-full px-3 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
-            milkyWay ? 'bg-[#fbf8f1] text-[#221f1c] ring-transparent' : 'bg-[#0e1118]/80 text-[#f1ece2] ring-white/15 hover:bg-[#1d2a44]'
-          }`}
-        >
-          Milky Way
-        </button>
-        {([['north', 'North pole', 'Look straight down on the north pole'], ['south', 'South pole', 'Look straight down on the south pole'], ['earth', 'Earth view', 'Look past the Moon at Earth: real size, real distance, real phase'], ['site', 'Recenter', 'Fly back to the selected site']] as const).map(([kind, label, title]) => (
-          <button
-            key={kind}
-            type="button"
-            title={title}
-            onClick={() => go(kind)}
-            className="pointer-events-auto rounded-full bg-[#0e1118]/80 px-3 py-1 text-xs font-medium text-[#f1ece2] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
-          >
-            {label}
-          </button>
-        ))}
+        <ViewMenu
+          showFeatures={showFeatures}
+          onFeatures={() => { setShowFeatures((v) => !v); setPicked(null) }}
+          milkyWay={milkyWay}
+          onMilkyWay={() => setMilkyWay(!milkyWay)}
+          go={go}
+        />
       </div>
     </div>
   )
