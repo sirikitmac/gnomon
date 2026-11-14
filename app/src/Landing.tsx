@@ -98,12 +98,12 @@ const FIVE_LINES = [
   'At the south pole the Sun never climbs more than a few degrees.',
 ]
 
-// Jodenn and Sherie have no photo yet: their badges show an empty photo slot.
+// Sherie has no photo yet: her badge shows an empty photo slot.
 const TEAM: Member[] = [
   { name: 'Sirikit', photo: '/team/sirikit.webp' },
   { name: 'Sherie' },
   { name: 'Jiandale', photo: '/team/jiandale.webp' },
-  { name: 'Jodenn' },
+  { name: 'Jodenn', photo: '/team/jodenn.webp' },
   { name: 'Rene', photo: '/team/rene.webp' },
   { name: 'Andi', photo: '/team/andi.webp' },
 ]
