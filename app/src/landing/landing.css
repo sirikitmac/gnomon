@@ -148,9 +148,16 @@ html:has(.lnd) { background: #f4efe4; }
 }
 
 /* Team badges on lanyards */
-.lnd .lnd-strap-ribbon { stroke: var(--sun); }
-.lnd .lnd-strap-edge { stroke: rgb(0 0 0 / 0.12); }
-.lnd .lnd-strap-letters { fill: var(--cream); font-size: 10px; font-weight: 800; letter-spacing: 0.04em; }
+.lnd .lnd-strap {
+  background: var(--sun);
+  box-shadow: inset 2px 0 0 rgb(0 0 0 / 0.1), inset -2px 0 0 rgb(0 0 0 / 0.1);
+}
+.lnd .lnd-strap-text {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.04em; line-height: 26px;
+  color: var(--cream);
+}
 .lnd .lnd-badge {
   /* the card stays cream in light and dark mode, like a real printed ID */
   --line: rgb(34 31 28 / 0.1);
