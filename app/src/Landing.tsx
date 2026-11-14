@@ -1,8 +1,9 @@
 import { motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import Lenis from 'lenis'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import GnomonMark from './components/GnomonMark'
 import Five, { type FiveMode } from './landing/Five'
+import AskFive from './landing/AskFive'
 import BlurText from './landing/BlurText'
 import TeamBadges, { type Member } from './landing/TeamBadges'
 import { useTheme } from './lib/theme'
@@ -19,8 +20,8 @@ const EASE = [0.23, 1, 0.32, 1] as const
 const NAV = [
   ['how', 'How it works'],
   ['features', 'Features'],
+  ['use', 'How to use'],
   ['validation', 'Validation'],
-  ['five', 'Meet Five'],
 ] as const
 
 const WITHOUT = [
@@ -37,41 +38,50 @@ const WITH = [
 ]
 
 const STEPS = [
-  { n: '01', title: 'Pick a site and a date', body: 'Nine sites, from Apollo 11 to NASA’s Artemis III candidates at the south pole. Choose a landing time and how long the mission lasts.' },
-  { n: '02', title: 'We run the numbers', body: 'Sun and Earth positions every 2 hours from JPL Horizons, checked against a 360° skyline built from NASA LOLA terrain, including the Moon’s curvature.' },
-  { n: '03', title: 'Get a decision', body: 'A verdict, the longest blackout, a countdown to sunset and Earthset, and plain-language advice on what to change.' },
+  { n: '1', title: 'Where the Sun and Earth are', body: 'JPL Horizons gives their direction and height in the sky at each site, every 2 hours from November 2026 to December 2028.' },
+  { n: '2', title: 'What the terrain blocks', body: 'NASA LOLA terrain gives each site a 360° skyline, including the Moon’s curvature. Anything below it is hidden.' },
+  { n: '3', title: 'What it means for the mission', body: 'Gnomon counts sunlight and Earth contact over your mission, then gives a screening verdict and a battery check for your lander.' },
+]
+
+const USE = [
+  { title: 'Choose a site', body: 'Pick one of nine sites in the left panel, from Apollo 11 to the Artemis III candidates near the south pole.' },
+  { title: 'Set the landing', body: 'Enter the landing date and mission length. Turn on comms if the lander must talk to Earth directly.' },
+  { title: 'Read the verdict', body: 'GO, RISKY or NO-GO at the top, with sunlight, Earth contact and the longest blackout.' },
+  { title: 'Check your lander', body: 'Enter battery, power draw and array output in Power check. Landing area shows the verdict around the touchdown point.' },
+  { title: 'Test a delay', body: 'Drag the Slip Test to move the landing, or open Calendar to see every good landing day.' },
+  { title: 'Compare and share', body: 'Rank sites for the same dates in Compare, then share a link or a printable report.' },
 ]
 
 const FEATURES = [
   {
     tag: 'Verdict',
     title: 'Know in one line if a landing works.',
-    body: 'GO, RISKY or NO-GO, with how much of the mission has sunlight and Earth in view, the longest blackout, and advice built straight from those numbers.',
-    points: ['Countdown to sunset and Earthset', 'Mission advice with one-click fixes', '3D Moon with the real Sun and Earth'],
+    body: 'GO, RISKY or NO-GO, with how much of the mission has sunlight and Earth in view and the longest blackout. Then check it against your own lander and the ground around the landing point.',
+    points: ['Battery check from your lander’s specs', 'Verdict across the landing area', 'Countdown to sunset and Earthset'],
     img: '/landing/mission.webp',
     alt: 'Gnomon mission page for Malapert Massif with the verdict strip, 3D Moon and site brief',
   },
   {
     tag: 'Slip Test',
     title: 'See what a delay does before it happens.',
-    body: 'Launches slip. Drag the Slip Test and the verdict updates for the new date, or open the calendar to see every good landing day at a glance.',
-    points: ['Slip from 1 to 14 days', 'Calendar of GO, RISKY and NO-GO days', 'Find the best date in one click'],
+    body: 'Launches slip. Drag the Slip Test and the verdict updates for the new date.',
+    points: ['Delays of 1 to 14 days', 'Calendar of GO, RISKY and NO-GO days', 'Best landing date in one click'],
     img: '/landing/calendar.webp',
     alt: 'Gnomon launch calendar coloring each day by verdict',
   },
   {
     tag: 'Compare',
     title: 'Every site, the same dates, side by side.',
-    body: 'Add or remove sites and rank them for the same mission. Planners see the trade-offs at once: more sunlight here, a steadier link to Earth there.',
-    points: ['Sun, Earth and both, over the mission', 'Slip column for every site', 'Shareable link and report'],
+    body: 'Rank sites for the same mission and see the trade-offs at once: more sunlight here, a steadier link to Earth there.',
+    points: ['Sunlight, Earth contact and both', 'Delay column for every site', 'Shareable link and report'],
     img: '/landing/compare.webp',
     alt: 'Gnomon compare page ranking landing sites for the same dates',
   },
   {
     tag: 'Site 3D',
     title: 'Watch the shadows move across the real terrain.',
-    body: 'Real LOLA terrain around the landing point, lit for the selected time. Press Play mission and the Sun and Earth sweep the sky as shadows cross the site.',
-    points: ['Play mission timelapse', 'Sunlit-area map around the landing point', 'Heights true to scale'],
+    body: 'LOLA terrain around the landing point, lit for the selected time. Press Play mission to watch the shadows cross the site.',
+    points: ['Mission timelapse', 'Sunlit-area map around the landing point', 'Heights true to scale'],
     img: '/landing/site3d.webp',
     alt: 'Gnomon Site 3D view of the terrain around Malapert with the landing point marked',
   },
@@ -91,7 +101,7 @@ const SITES = [
 ]
 
 const FIVE_LINES = [
-  'Hi, I’m Five. Tap or click me for a Moon fact.',
+  'Hi, I’m Five. Tap me for a Moon fact.',
   'Malapert Massif sees Earth 99.9% of the time.',
   'Haworth sits next to ice, but gets sunlight only 8% of the time.',
   'On the far side, Earth never rises. Chang’e-4 needed a relay satellite.',
@@ -208,6 +218,14 @@ function ThemeToggle() {
 
 function Nav({ onOpen }: { onOpen: () => void }) {
   const [solid, setSolid] = useState(false)
+  const [askOpen, setAskOpen] = useState(false)
+  const askButton = useRef<HTMLButtonElement>(null)
+  // Pause smooth scrolling while the Ask Five window is open, and give focus back on close.
+  useEffect(() => {
+    if (askOpen) { lenis?.stop(); return }
+    lenis?.start()
+  }, [askOpen])
+  const closeAsk = useCallback(() => { setAskOpen(false); askButton.current?.focus() }, [])
   useEffect(() => {
     const on = () => setSolid(window.scrollY > window.innerHeight * 0.6)
     on()
@@ -238,18 +256,31 @@ function Nav({ onOpen }: { onOpen: () => void }) {
             </li>
           ))}
         </ul>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
+          <button
+            ref={askButton}
+            type="button"
+            onClick={() => setAskOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={askOpen}
+            aria-label="Ask Five"
+            title="Ask Five"
+            className="grid h-11 w-11 place-items-center rounded-full transition-[background-color,transform] duration-150 hover:bg-[var(--card-2)] active:scale-[0.94]"
+          >
+            <Five size={24} title="Ask Five" />
+          </button>
           <ThemeToggle />
           <a
             href="/dashboard"
             onClick={(e) => { if (e.metaKey || e.ctrlKey || e.button !== 0) return; e.preventDefault(); onOpen() }}
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-[14px] font-semibold tracking-[-0.02em] text-[var(--on-ink)] transition-transform duration-150 active:scale-[0.97]"
+            className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full bg-[var(--ink)] px-4 text-[14px] font-semibold tracking-[-0.02em] text-[var(--on-ink)] transition-transform duration-150 active:scale-[0.97] sm:px-5"
           >
-            <span className="h-2 w-2 rounded-full bg-[var(--sun)]" aria-hidden />
+            <span className="hidden h-2 w-2 rounded-full bg-[var(--sun)] min-[400px]:block" aria-hidden />
             Launch app
           </a>
         </div>
       </nav>
+      <AskFive open={askOpen} onClose={closeAsk} />
     </motion.header>
   )
 }
@@ -300,7 +331,7 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
                 </a>
               </motion.div>
               <p className="mt-10 text-[13px] font-semibold tracking-[-0.01em] text-[#fffdf6]/55">
-                Built on NASA data from JPL Horizons and LRO LOLA
+                Built on NASA JPL Horizons and LRO LOLA data
               </p>
             </div>
           </motion.div>
@@ -343,8 +374,13 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
             Scroll to move the Sun
           </motion.div>
 
-          {/* Mid-scroll line while the light sweeps, over a dark fade so it reads on the bright Moon */}
-          <motion.div style={{ opacity: lineOpacity }} className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-[linear-gradient(to_top,rgb(7_9_13/0.92),rgb(7_9_13/0.55)_45%,transparent)]" aria-hidden />
+          {/* Mid-scroll line while the light sweeps. A soft oval shade sits behind just the text and fades
+              out on every side, so no edge shows across the Moon as the hero scrolls away. */}
+          <motion.div
+            style={{ opacity: lineOpacity, y: lineY }}
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-[radial-gradient(ellipse_46%_38%_at_50%_80%,rgb(7_9_13/0.82),rgb(7_9_13/0.5)_45%,transparent_100%)] sm:bg-[radial-gradient(ellipse_34%_32%_at_50%_80%,rgb(7_9_13/0.8),rgb(7_9_13/0.45)_45%,transparent_100%)]"
+            aria-hidden
+          />
           <motion.p
             style={{ opacity: lineOpacity, y: lineY }}
             className="pointer-events-none absolute inset-x-0 bottom-10 px-6 text-center text-[clamp(22px,2.6vw,34px)] font-normal tracking-[-0.035em] text-[var(--cream)] sm:bottom-14"
@@ -409,7 +445,6 @@ function BeforeAfter() {
         <div className="card relative overflow-hidden p-7 shadow-[0_40px_90px_-40px_rgb(0_0_0/0.9)] sm:p-10">
           <p className="small text-[var(--ink-2)]">With Gnomon</p>
           <BlurText as="h3" className="h3 mt-3 max-w-[18ch]" text="A verdict in seconds." />
-          <div className="absolute right-6 top-6 sm:right-10 sm:top-9"><Five size={64} mode="idle" title="Five" /></div>
           <ul className="mt-16 flex flex-col gap-3.5 sm:mt-24">
             {WITH.map((t) => (
               <li key={t} className="flex items-center gap-3 text-[15px] font-semibold tracking-[-0.02em] text-[var(--ink)]"><Check dark />{t}</li>
@@ -428,8 +463,7 @@ function HowItWorks() {
     <section id="how" className="relative mx-auto max-w-[1240px] scroll-mt-28 px-5 py-[14vh] sm:px-8">
       <div ref={ref} className="flex flex-wrap items-end justify-between gap-8">
         <Reveal>
-          <p className="small text-[var(--ink-2)]">How it works</p>
-          <BlurText className="h2 mt-3 max-w-[16ch]" text="From a date to a decision in three steps." />
+          <BlurText className="h2 max-w-[16ch]" text="From NASA data to a verdict." />
         </Reveal>
         <div className="hidden sm:block">{inView && <Five size={112} draw mode="idle" title="Five drawing itself" />}</div>
       </div>
@@ -437,11 +471,8 @@ function HowItWorks() {
         {STEPS.map((s, i) => (
           <li key={s.n}><Reveal delay={i * 0.1} className="h-full">
             <div className="glass flex h-full flex-col p-7">
-              <div className="flex items-center justify-between">
-                <span className="chip">Step</span>
-                <span className="tabular text-[15px] font-semibold text-[var(--ink-2)]">{s.n}</span>
-              </div>
-              <h3 className="mt-14 text-[24px] font-[450] leading-[1.15] tracking-[-0.035em]">{s.title}</h3>
+              <span className="tabular text-[15px] font-semibold text-[var(--ink-2)]">{s.n}</span>
+              <h3 className="mt-10 text-[24px] font-[450] leading-[1.15] tracking-[-0.035em]">{s.title}</h3>
               <p className="body mt-3">{s.body}</p>
             </div>
           </Reveal></li>
@@ -455,19 +486,15 @@ function Features() {
   return (
     <section id="features" className="relative mx-auto max-w-[1240px] scroll-mt-28 px-5 pb-[10vh] sm:px-8">
       <Reveal>
-        <p className="small text-[var(--ink-2)]">Features</p>
-        <BlurText className="h2 mt-3 max-w-[20ch]" text="What a landing team asks, answered on one screen." />
+        <BlurText className="h2 max-w-[20ch]" text="What a landing team asks, answered on one screen." />
       </Reveal>
       <div className="mt-14 flex flex-col gap-4">
         {FEATURES.map((f, i) => (
           <div key={f.tag} className="lg:sticky" style={{ top: 96 + i * 22 }}>
             <article className="card grid gap-6 p-3 lg:grid-cols-[0.82fr_1.18fr] lg:p-3">
               <div className="flex flex-col p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <span className="chip"><span className="h-1.5 w-1.5 rounded-full bg-[var(--sun)]" aria-hidden />{f.tag}</span>
-                  <span className="tabular text-[15px] font-semibold text-[var(--ink-2)]">0{i + 1}</span>
-                </div>
-                <BlurText as="h3" className="h3 mt-8 lg:mt-12" text={f.title} />
+                <p className="small text-[var(--ink-2)]">{f.tag}</p>
+                <BlurText as="h3" className="h3 mt-3" text={f.title} />
                 <p className="body mt-4">{f.body}</p>
                 <ul className="mt-auto flex flex-col gap-2.5 pt-8">
                   {f.points.map((p) => (
@@ -488,6 +515,35 @@ function Features() {
   )
 }
 
+function HowToUse({ onOpen }: { onOpen: () => void }) {
+  return (
+    <section id="use" className="mx-auto max-w-[1240px] scroll-mt-28 px-5 py-[14vh] sm:px-8">
+      <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+        <div className="lg:sticky lg:top-32 lg:self-start">
+          <BlurText className="h2 max-w-[12ch]" text="How to use Gnomon" />
+          <p className="body mt-5 max-w-[36ch]">Six steps from opening the app to a plan you can share. Most take a few seconds.</p>
+          <div className="mt-8"><OpenButton onOpen={onOpen} /></div>
+        </div>
+        <ol className="grid gap-x-10 sm:grid-cols-2">
+          {USE.map((u, i) => (
+            <li key={u.title} className="border-t border-[var(--line)] py-7">
+              <Reveal delay={(i % 2) * 0.06}>
+                <div className="flex items-baseline gap-4">
+                  <span className="tabular w-5 shrink-0 text-[15px] font-semibold text-[var(--sun)]">{i + 1}</span>
+                  <div>
+                    <h3 className="text-[20px] font-semibold leading-tight tracking-[-0.03em]">{u.title}</h3>
+                    <p className="body mt-2">{u.body}</p>
+                  </div>
+                </div>
+              </Reveal>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  )
+}
+
 function Validation() {
   return (
     <section id="validation" className="scroll-mt-24 px-2 py-[8vh] sm:px-3">
@@ -495,8 +551,7 @@ function Validation() {
         <div className="pointer-events-none absolute -right-[18%] -top-[30%] h-[640px] w-[640px] rounded-full bg-[radial-gradient(circle_at_35%_35%,rgb(210_80_42/0.28),transparent_60%)]" aria-hidden />
         <div className="relative mx-auto max-w-[1180px]">
           <Reveal>
-            <p className="small text-[#fffdf6]/60">Validated against NASA</p>
-            <BlurText className="h2 mt-3 max-w-[22ch]" text="We checked our math against JPL’s and NASA’s own." />
+            <BlurText className="h2 max-w-[22ch]" text="We checked our math against JPL’s and NASA’s own." />
           </Reveal>
           <div className="mt-16 grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-end">
             <Reveal>
@@ -510,7 +565,7 @@ function Validation() {
                 ['2.1 pts', 'average gap between our sunlight and NASA’s polar illumination maps (PGDA), 7 polar sites'],
                 ['7 of 7', 'polar sites where our sunlight falls inside NASA’s own range within 500 m'],
                 ['170,874', 'Sun and Earth positions checked, at all 9 sites'],
-                ['2 h', 'time step, every day from Nov 2026 to Dec 2028'],
+                ['2 years', 'of positions, every 2 hours from Nov 2026 to Dec 2028'],
               ].map(([v, l], i) => (
                 <Reveal key={l} delay={i * 0.08}>
                   <div className="h-full rounded-[22px] bg-white/[0.06] p-5 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08)]">
@@ -533,8 +588,7 @@ function Sites() {
     <section className="py-[12vh]" aria-label="Landing sites">
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
         <Reveal>
-          <p className="small text-[var(--ink-2)]">Nine sites</p>
-          <BlurText className="h2 mt-3 max-w-[20ch]" text="From the sunniest ridge to a place Earth never rises." />
+          <BlurText className="h2 max-w-[20ch]" text="Nine sites, from the sunniest ridge to a place Earth never rises." />
         </Reveal>
       </div>
       <div className="marquee-wrap mt-12 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]">
@@ -589,15 +643,13 @@ function MeetFive() {
             aria-label="Talk to Five"
           >
             <Five size={260} mode={mode} title="Five" />
-            <span className="absolute bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[13px] font-semibold tracking-[-0.01em] text-[var(--ink-2)]">Tap or click Five to hear a fact.</span>
           </button>
         </Reveal>
         <div className="p-2 sm:p-6 lg:pl-12">
           <Reveal>
-            <p className="small text-[var(--ink-2)]">Meet Five</p>
-            <BlurText className="h2 mt-3" text="Our guide to the Moon’s light." />
+            <BlurText className="h2" text="Meet Five, our guide to the Moon’s light." />
             <p className="body mt-6 max-w-[46ch]">
-              Our team, Lagrange Point, is named after the five places in space where a small body can ride along with two big ones. Five is named after L5, which always sits at the tip of an equilateral triangle. The triangle is Five. The dot is the Sun.
+              Lagrange points are the five places where a small body can ride along with two big ones. Five is named after L5, which sits at the tip of an equilateral triangle: the triangle is Five, and the dot is the Sun. Tap Five for a Moon fact, or use Ask Five at the top of the page.
             </p>
           </Reveal>
           <motion.div
@@ -621,9 +673,8 @@ function FinalCta({ onOpen }: { onOpen: () => void }) {
     <section className="px-2 pb-2 pt-[6vh] sm:px-3 sm:pb-3">
       <div className="relative overflow-hidden rounded-[28px] bg-[var(--sand)] px-5 py-[14vh] text-center sm:rounded-[36px]">
         <Reveal>
-          <div className="mx-auto mb-8 w-fit"><Five size={84} mode="idle" title="Five" /></div>
           <BlurText stagger={0.07} className="display brand-display mx-auto max-w-[15ch] text-[clamp(36px,5.8vw,84px)]" text="Plan a landing in 30 seconds." />
-          <p className="body mx-auto mt-5 max-w-[40ch]">Pick a site and a date. We do the rest.</p>
+          <p className="body mx-auto mt-5 max-w-[40ch]">Free, in the browser, no account needed.</p>
           <div className="mt-10 flex justify-center"><OpenButton onOpen={onOpen} /></div>
         </Reveal>
       </div>
@@ -632,11 +683,8 @@ function FinalCta({ onOpen }: { onOpen: () => void }) {
         <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
           <TeamBadges members={TEAM} />
           <div className="flex flex-col gap-4 pb-10 pt-2 sm:pb-14 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="small text-[var(--ink-2)]">Members area</p>
-              <BlurText as="h2" className="h2 mt-3" text="Team Lagrange Point" />
-            </div>
-            <p className="body max-w-[44ch] lg:text-right">Six students from Iligan City, Philippines, building for the 2026 NASA Space Apps Challenge. Grab a badge and give it a swing.</p>
+            <BlurText as="h2" className="h2" text="Team Lagrange Point" />
+            <p className="body max-w-[44ch] lg:text-right">Six students from Iligan City, Philippines, building for the 2026 NASA Space Apps Challenge.</p>
           </div>
         </div>
       </section>
@@ -674,6 +722,7 @@ export default function Landing({ onOpenDashboard }: { onOpenDashboard: () => vo
           <Features />
           <div id="zone-end" aria-hidden />
         </div>
+        <HowToUse onOpen={onOpenDashboard} />
         <Validation />
         <Sites />
         <MeetFive />
