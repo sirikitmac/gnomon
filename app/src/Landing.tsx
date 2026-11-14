@@ -1,10 +1,13 @@
 import { motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import Lenis from 'lenis'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import GnomonMark from './components/GnomonMark'
 import Five, { type FiveMode } from './landing/Five'
+import '@fontsource-variable/manrope'
+import '@fontsource-variable/fraunces/opsz.css'
 import './landing/landing.css'
 
-const HeroMoon = lazy(() => import('./landing/HeroMoon'))
+const MoonStage = lazy(() => import('./landing/MoonStage'))
 
 const EASE = [0.23, 1, 0.32, 1] as const
 
@@ -32,7 +35,7 @@ const WITH = [
 
 const STEPS = [
   { n: '01', title: 'Pick a site and a date', body: 'Nine sites, from Apollo 11 to NASA’s Artemis III candidates at the south pole. Choose a landing time and how long the mission lasts.' },
-  { n: '02', title: 'Lunalit runs the numbers', body: 'Sun and Earth positions every 2 hours from JPL Horizons, checked against a 360° skyline built from NASA LOLA terrain, including the Moon’s curvature.' },
+  { n: '02', title: 'We run the numbers', body: 'Sun and Earth positions every 2 hours from JPL Horizons, checked against a 360° skyline built from NASA LOLA terrain, including the Moon’s curvature.' },
   { n: '03', title: 'Get a decision', body: 'A verdict, the longest blackout, a countdown to sunset and Earthset, and plain-language advice on what to change.' },
 ]
 
@@ -43,7 +46,7 @@ const FEATURES = [
     body: 'GO, RISKY or NO-GO, with how much of the mission has sunlight and Earth in view, the longest blackout, and advice built straight from those numbers.',
     points: ['Countdown to sunset and Earthset', 'Mission advice with one-click fixes', '3D Moon with the real Sun and Earth'],
     img: '/landing/mission.webp',
-    alt: 'Lunalit mission page for Malapert Massif with the verdict strip, 3D Moon and site brief',
+    alt: 'Gnomon mission page for Malapert Massif with the verdict strip, 3D Moon and site brief',
   },
   {
     tag: 'Slip Test',
@@ -51,7 +54,7 @@ const FEATURES = [
     body: 'Launches slip. Drag the Slip Test and the verdict updates for the new date, or open the calendar to see every good landing day at a glance.',
     points: ['Slip from 1 to 14 days', 'Calendar of GO, RISKY and NO-GO days', 'Find the best date in one click'],
     img: '/landing/calendar.webp',
-    alt: 'Lunalit launch calendar coloring each day by verdict',
+    alt: 'Gnomon launch calendar coloring each day by verdict',
   },
   {
     tag: 'Compare',
@@ -59,7 +62,7 @@ const FEATURES = [
     body: 'Add or remove sites and rank them for the same mission. Planners see the trade-offs at once: more sunlight here, a steadier link to Earth there.',
     points: ['Sun, Earth and both, over the mission', 'Slip column for every site', 'Shareable link and report'],
     img: '/landing/compare.webp',
-    alt: 'Lunalit compare page ranking landing sites for the same dates',
+    alt: 'Gnomon compare page ranking landing sites for the same dates',
   },
   {
     tag: 'Site 3D',
@@ -67,11 +70,11 @@ const FEATURES = [
     body: 'Real LOLA terrain around the landing point, lit for the selected time. Press Play mission and the Sun and Earth sweep the sky as shadows cross the site.',
     points: ['Play mission timelapse', 'Sunlit-area map around the landing point', 'Heights true to scale'],
     img: '/landing/site3d.webp',
-    alt: 'Lunalit Site 3D view of the terrain around Malapert with the landing point marked',
+    alt: 'Gnomon Site 3D view of the terrain around Malapert with the landing point marked',
   },
 ]
 
-// 2-year averages from Lunalit's dataset (Nov 2026 – Dec 2028, every 2 h).
+// 2-year averages from our dataset (Nov 2026 – Dec 2028, every 2 h).
 const SITES = [
   { name: 'Shackleton–de Gerlache Ridge', role: 'Sunniest', sun: 82, earth: 49 },
   { name: 'Malapert Massif', role: 'Artemis III candidate', sun: 66, earth: 99.9 },
@@ -139,7 +142,7 @@ function Arrow({ className }: { className?: string }) {
   )
 }
 
-function OpenButton({ onOpen, label = 'Open Lunalit', variant = 'sun' }: { onOpen: () => void; label?: string; variant?: 'sun' | 'ink' }) {
+function OpenButton({ onOpen, label = 'Launch the app', variant = 'sun' }: { onOpen: () => void; label?: string; variant?: 'sun' | 'ink' }) {
   return (
     <a
       href="/dashboard"
@@ -177,9 +180,9 @@ function Nav({ onOpen }: { onOpen: () => void }) {
         aria-label="Main"
         className={`mx-auto flex h-[60px] max-w-[1240px] items-center justify-between rounded-full pl-4 pr-2 backdrop-blur-xl backdrop-saturate-150 transition-[background-color,box-shadow] duration-300 ${solid ? 'bg-[#fbf8f1]/90 shadow-[0_0_0_1px_rgb(34_31_28/0.08),0_10px_30px_-18px_rgb(34_31_28/0.35)]' : 'bg-[#fbf8f1]/80 shadow-[0_0_0_1px_rgb(34_31_28/0.06)]'}`}
       >
-        <a href="#top" onClick={(e) => { e.preventDefault(); lenis ? lenis.scrollTo(0, { duration: 1.2 }) : window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="flex items-center gap-2.5" aria-label="Lunalit home">
-          <Five size={30} title="" />
-          <span className="text-[19px] font-semibold tracking-[-0.04em]">Lunalit</span>
+        <a href="#top" onClick={(e) => { e.preventDefault(); lenis ? lenis.scrollTo(0, { duration: 1.2 }) : window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="flex items-center gap-2.5" aria-label="Gnomon home">
+          <GnomonMark height={24} />
+          <span className="brand text-[21px] sm:text-[23px]">Gnomon</span>
         </a>
         <ul className="hidden items-center gap-1 md:flex">
           {NAV.map(([id, label]) => (
@@ -196,7 +199,7 @@ function Nav({ onOpen }: { onOpen: () => void }) {
           className="inline-flex h-11 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-[14px] font-semibold tracking-[-0.02em] text-[var(--cream)] transition-transform duration-150 active:scale-[0.97]"
         >
           <span className="h-2 w-2 rounded-full bg-[var(--sun)]" aria-hidden />
-          Open Lunalit
+          Launch app
         </a>
       </nav>
     </motion.header>
@@ -214,12 +217,9 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
   const lineY = useTransform(scrollYProgress, [0.45, 0.62], [24, 0])
 
   return (
-    <section id="top" ref={ref} className="relative h-[230vh]" aria-label="Lunalit">
-      <div className="sticky top-0 h-[100svh] p-2 sm:p-3">
-        <div className="relative h-full overflow-hidden rounded-[28px] bg-[radial-gradient(120%_90%_at_70%_40%,#151a23_0%,#07090d_60%)] sm:rounded-[36px]">
-          <Suspense fallback={null}>
-            <HeroMoon progress={scrollYProgress} reduce={reduce} />
-          </Suspense>
+    <section id="top" ref={ref} className="relative h-[230vh]" aria-label="Gnomon">
+      <div className="sticky top-0 h-[100svh]">
+        <div className="relative h-full overflow-hidden">
 
           {/* Headline block */}
           <motion.div style={{ opacity: textOpacity, y: textY }} className="absolute inset-x-0 bottom-0 px-5 pb-8 sm:px-10 sm:pb-12 lg:px-14 lg:pb-14">
@@ -228,7 +228,7 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
                 initial={reduce ? false : { opacity: 0, y: 28, filter: 'blur(8px)' }}
                 animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                 transition={{ duration: 1.1, ease: EASE, delay: 0.25 }}
-                className="display text-[clamp(44px,7.4vw,104px)] text-[var(--cream)]"
+                className="display brand-display text-[clamp(38px,6.1vw,92px)] text-[var(--cream)]"
               >
                 Find where the Moon stays lit.
               </motion.h1>
@@ -238,7 +238,7 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
                 transition={{ duration: 0.9, ease: EASE, delay: 0.5 }}
                 className="mt-5 max-w-[34ch] text-[17px] font-medium leading-[1.5] tracking-[-0.015em] text-[#fffdf6]/75 sm:text-[19px]"
               >
-                Lunalit checks any lunar landing site and date in seconds: sunlight for power, Earth in view for contact, and what happens if the launch slips.
+                Gnomon checks any lunar landing site and date in seconds: sunlight for power, Earth in view for contact, and what happens if the launch slips.
               </motion.p>
               <motion.div
                 initial={reduce ? false : { opacity: 0, y: 12 }}
@@ -263,7 +263,7 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
             initial={reduce ? false : { opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.9, ease: EASE, delay: 0.9 }}
-            className="absolute bottom-8 right-8 hidden w-[340px] rounded-[26px] bg-[#fbf8f1]/95 p-2 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] backdrop-blur-xl lg:block"
+            className="light absolute bottom-8 right-8 hidden w-[340px] rounded-[26px] bg-[#fbf8f1]/95 p-2 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] backdrop-blur-xl lg:block"
             aria-label="Example site"
           >
             <div className="rounded-[20px] bg-[var(--card)] p-5">
@@ -301,7 +301,7 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
             style={{ opacity: lineOpacity, y: lineY }}
             className="pointer-events-none absolute inset-x-0 bottom-10 px-6 text-center text-[clamp(22px,2.6vw,34px)] font-normal tracking-[-0.035em] text-[var(--cream)] sm:bottom-14"
           >
-            As the Sun moves, the light on every crater changes.<br className="hidden sm:block" /> Lunalit tells you where it lasts.
+            As the Sun moves, the light on every crater changes.<br className="hidden sm:block" /> Gnomon tells you where it lasts.
           </motion.p>
         </div>
       </div>
@@ -320,7 +320,7 @@ function Statement() {
   const text = 'At the Moon’s south pole the Sun never climbs more than a few degrees. One ridge on the horizon decides whether a lander has power, and a few days’ delay can decide whether it survives.'
   const words = text.split(' ')
   return (
-    <section className="mx-auto max-w-[1100px] px-5 py-[18vh] sm:px-8">
+    <section id="statement" className="relative mx-auto max-w-[1100px] px-5 py-[22vh] sm:px-8">
       <p ref={ref} className="h2 text-[var(--ink)]">
         {words.map((w, i) => (
           <Word key={i} progress={scrollYProgress} range={[i / words.length, (i + 1) / words.length]}>{w}</Word>
@@ -344,10 +344,10 @@ function Check({ dark }: { dark?: boolean }) {
 
 function BeforeAfter() {
   return (
-    <section className="relative mx-auto max-w-[760px] px-5 pb-[16vh] sm:px-8" aria-label="Without and with Lunalit">
+    <section id="compare" className="relative mx-auto max-w-[760px] px-5 pb-[16vh] sm:px-8" aria-label="Without and with Gnomon">
       <div className="sticky top-24 sm:top-28">
-        <div className="card p-7 sm:p-10">
-          <p className="small text-[var(--ink-2)]">Without Lunalit</p>
+        <div className="glass p-7 sm:p-10">
+          <p className="small text-[var(--ink-2)]">Without Gnomon</p>
           <h3 className="h3 mt-3 max-w-[18ch]">Hours across three NASA tools.</h3>
           <ul className="mt-16 flex flex-col gap-3.5 sm:mt-24">
             {WITHOUT.map((t) => (
@@ -357,13 +357,13 @@ function BeforeAfter() {
         </div>
       </div>
       <div className="sticky top-32 mt-[40vh] sm:top-36">
-        <div className="relative overflow-hidden rounded-[32px] bg-[var(--ink)] p-7 text-[var(--cream)] shadow-[0_40px_90px_-40px_rgb(34_31_28/0.8)] sm:p-10" style={{ ['--five-ink' as string]: '#fbf8f1' }}>
-          <p className="small text-[#fffdf6]/60">With Lunalit</p>
+        <div className="card relative overflow-hidden p-7 shadow-[0_40px_90px_-40px_rgb(0_0_0/0.9)] sm:p-10">
+          <p className="small text-[var(--ink-2)]">With Gnomon</p>
           <h3 className="h3 mt-3 max-w-[18ch]">A verdict in seconds.</h3>
           <div className="absolute right-6 top-6 sm:right-10 sm:top-9"><Five size={64} mode="idle" title="Five" /></div>
           <ul className="mt-16 flex flex-col gap-3.5 sm:mt-24">
             {WITH.map((t) => (
-              <li key={t} className="flex items-center gap-3 text-[15px] font-semibold tracking-[-0.02em] text-[var(--cream)]"><Check dark />{t}</li>
+              <li key={t} className="flex items-center gap-3 text-[15px] font-semibold tracking-[-0.02em] text-[var(--ink)]"><Check dark />{t}</li>
             ))}
           </ul>
         </div>
@@ -376,7 +376,7 @@ function HowItWorks() {
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref, { once: true, margin: '0px 0px -20% 0px' })
   return (
-    <section id="how" className="mx-auto max-w-[1240px] scroll-mt-28 px-5 py-[14vh] sm:px-8">
+    <section id="how" className="relative mx-auto max-w-[1240px] scroll-mt-28 px-5 py-[14vh] sm:px-8">
       <div ref={ref} className="flex flex-wrap items-end justify-between gap-8">
         <Reveal>
           <p className="small text-[var(--ink-2)]">How it works</p>
@@ -387,7 +387,7 @@ function HowItWorks() {
       <ol className="mt-14 grid gap-3 md:grid-cols-3">
         {STEPS.map((s, i) => (
           <li key={s.n}><Reveal delay={i * 0.1} className="h-full">
-            <div className="card flex h-full flex-col p-7">
+            <div className="glass flex h-full flex-col p-7">
               <div className="flex items-center justify-between">
                 <span className="chip">Step</span>
                 <span className="tabular text-[15px] font-semibold text-[var(--ink-2)]">{s.n}</span>
@@ -404,7 +404,7 @@ function HowItWorks() {
 
 function Features() {
   return (
-    <section id="features" className="mx-auto max-w-[1240px] scroll-mt-28 px-5 pb-[10vh] sm:px-8">
+    <section id="features" className="relative mx-auto max-w-[1240px] scroll-mt-28 px-5 pb-[10vh] sm:px-8">
       <Reveal>
         <p className="small text-[var(--ink-2)]">Features</p>
         <h2 className="h2 mt-3 max-w-[20ch]">What a landing team asks, answered on one screen.</h2>
@@ -453,7 +453,7 @@ function Validation() {
             <Reveal>
               <p className="tabular text-[clamp(72px,12vw,168px)] font-normal leading-[0.9] tracking-[-0.06em]">0.0005°</p>
               <p className="mt-5 max-w-[42ch] text-[16px] font-medium leading-[1.55] tracking-[-0.012em] text-[#fffdf6]/70">
-                The largest difference between Lunalit’s Sun and Earth positions and an independent calculation from JPL’s DE421 ephemeris. That is a thousand times smaller than the Sun’s disc.
+                The largest difference between our Sun and Earth positions and an independent calculation from JPL’s DE421 ephemeris. That is a thousand times smaller than the Sun’s disc.
               </p>
             </Reveal>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -548,7 +548,7 @@ function MeetFive() {
             <p className="small text-[var(--ink-2)]">Meet Five</p>
             <h2 className="h2 mt-3">Our guide to the Moon’s light.</h2>
             <p className="body mt-6 max-w-[46ch]">
-              Our team is Lagrange Point, and Five is named after L5: a point where a small body can ride along with two big ones, always at the tip of an equilateral triangle. The triangle is Five. The dot is the Sun.
+              Our team, Lagrange Point, is named after the five places in space where a small body can ride along with two big ones. Five is named after L5, which always sits at the tip of an equilateral triangle. The triangle is Five. The dot is the Sun.
             </p>
           </Reveal>
           <motion.div
@@ -595,13 +595,13 @@ function FinalCta({ onOpen }: { onOpen: () => void }) {
       <div className="relative overflow-hidden rounded-[28px] bg-[#efe9dc] px-5 py-[14vh] text-center sm:rounded-[36px]">
         <Reveal>
           <div className="mx-auto mb-8 w-fit"><Five size={84} mode="idle" title="Five" /></div>
-          <h2 className="display mx-auto max-w-[14ch] text-[clamp(44px,7vw,96px)]">Plan a landing in 30 seconds.</h2>
-          <p className="body mx-auto mt-5 max-w-[40ch]">Pick a site and a date. Lunalit does the rest.</p>
+          <h2 className="display brand-display mx-auto max-w-[15ch] text-[clamp(36px,5.8vw,84px)]">Plan a landing in 30 seconds.</h2>
+          <p className="body mx-auto mt-5 max-w-[40ch]">Pick a site and a date. We do the rest.</p>
           <div className="mt-10 flex justify-center"><OpenButton onOpen={onOpen} /></div>
         </Reveal>
       </div>
       <footer className="mx-auto flex max-w-[1240px] flex-col gap-3 px-3 pb-6 pt-8 text-[13px] font-semibold tracking-[-0.01em] text-[var(--ink-2)] sm:flex-row sm:items-start sm:justify-between">
-        <p>Lunalit by Lagrange Point · NASA Space Apps Challenge 2026, Iligan</p>
+        <p className="flex items-center gap-2"><GnomonMark height={16} /><span><span className="brand text-[15px] text-[var(--ink)]">Gnomon</span> by Lagrange Point · NASA Space Apps Challenge 2026, Iligan</span></p>
         <p className="max-w-[60ch] sm:text-right">
           A student project, not an official NASA product. Data: JPL Horizons, LRO LOLA via NASA Goddard PGDA, NASA SVS CGI Moon Kit.
         </p>
@@ -615,7 +615,7 @@ export default function Landing({ onOpenDashboard }: { onOpenDashboard: () => vo
   useSmoothScroll(reduce)
   useEffect(() => {
     const prev = document.title
-    document.title = 'Lunalit · Find where the Moon stays lit'
+    document.title = 'Gnomon · Find where the Moon stays lit'
     const html = document.documentElement
     const bg = html.style.backgroundColor
     html.style.backgroundColor = '#f4efe4'
@@ -625,11 +625,18 @@ export default function Landing({ onOpenDashboard }: { onOpenDashboard: () => vo
     <div className="lnd min-h-screen">
       <Nav onOpen={onOpenDashboard} />
       <main>
-        <Hero onOpen={onOpenDashboard} reduce={reduce} />
-        <Statement />
-        <BeforeAfter />
-        <HowItWorks />
-        <Features />
+        {/* The "space" part: one Moon behind all of these sections, moving as you scroll */}
+        <div className="zone relative mx-2 mt-2 overflow-clip rounded-[28px] sm:mx-3 sm:mt-3 sm:rounded-[36px]">
+          <Suspense fallback={null}>
+            <MoonStage reduce={reduce} />
+          </Suspense>
+          <Hero onOpen={onOpenDashboard} reduce={reduce} />
+          <Statement />
+          <BeforeAfter />
+          <HowItWorks />
+          <Features />
+          <div id="zone-end" aria-hidden />
+        </div>
         <Validation />
         <Sites />
         <MeetFive />
