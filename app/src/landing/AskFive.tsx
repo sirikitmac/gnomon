@@ -94,7 +94,7 @@ export default function AskFive({ open, onClose }: { open: boolean; onClose: () 
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-end justify-center p-3 sm:items-center sm:p-6"
+          className="five-host fixed inset-0 z-[60] flex items-end justify-center p-3 sm:items-center sm:p-6"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
         >
           <button type="button" aria-label="Close Ask Five" tabIndex={-1} onClick={onClose} className="absolute inset-0 cursor-default bg-[rgb(7_9_13/0.45)] backdrop-blur-[2px]" />

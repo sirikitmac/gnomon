@@ -23,6 +23,8 @@ import { TARGET_VIEW, viewFromHash, type View } from './lib/views'
 import { compareSites, loadCompareIds, saveCompareIds } from './lib/compare'
 import { analyze, bestLanding, clampIdx, DEFAULT_RULES, EXAMPLE_LANDER, fmtDate, fmtHours, idxToDate, nowIdx, withRules, type Lander } from './lib/engine'
 import PowerCheck from './components/PowerCheck'
+import AskFive from './landing/AskFive'
+import Five from './landing/Five'
 import LandingArea from './components/LandingArea'
 import { copyText } from './lib/dom'
 import { checkPreset, PRESETS, resolvePreset, type Preset } from './lib/presets'
@@ -163,6 +165,9 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [urlReady, setUrlReady] = useState(false)
   const [learnOn, setLearnOn] = useState(false)
+  const [askOpen, setAskOpen] = useState(false)
+  const askButton = useRef<HTMLButtonElement>(null)
+  const closeAsk = useCallback(() => { setAskOpen(false); askButton.current?.focus() }, [])
   const [moonMode, setMoonModeState] = useState<MoonMode>(readMoonMode)
   const setMoonMode = (m: MoonMode) => {
     setMoonModeState(m)
@@ -340,6 +345,20 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
         <ViewTabs value={view} onChange={setView} className="mx-auto hidden w-[440px] lg:block" />
         <div className="ml-auto flex items-center gap-1 sm:gap-2 lg:ml-0">
           <button
+            ref={askButton}
+            type="button"
+            onClick={() => setAskOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={askOpen}
+            title="Ask Five a question"
+            className="flex h-9 items-center gap-1.5 rounded-full px-2 text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.96] sm:px-2.5"
+          >
+            <Five size={18} title="Five" />
+            <span className="hidden md:inline">Ask Five</span>
+            <span className="sr-only md:hidden">Ask Five</span>
+          </button>
+          <AskFive open={askOpen} onClose={closeAsk} />
+          <button
             id="learn-button"
             onClick={() => {
               setLearnOn((v) => {
@@ -356,7 +375,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
             aria-pressed={learnOn}
             disabled={!ds}
             title="A guided tour of how lunar landing sites work"
-            className={`flex h-9 items-center gap-1.5 rounded-lg px-2 text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.96] disabled:opacity-40 sm:px-2.5 ${learnOn ? 'bg-surface-2 text-ink' : ''}`}
+            className={`flex h-9 items-center gap-1.5 rounded-full px-2 text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.96] disabled:opacity-40 sm:px-2.5 ${learnOn ? 'bg-surface-2 text-ink' : ''}`}
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden><path d="M2.5 4.5c2.2-1 4.4-1 6.5.5 2.1-1.5 4.3-1.5 6.5-.5v9.5c-2.2-1-4.4-1-6.5.5-2.1-1.5-4.3-1.5-6.5-.5V4.5ZM9 5v9.5" /></svg>
             <span className="hidden md:inline">Learn</span>

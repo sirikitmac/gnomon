@@ -15,6 +15,8 @@
   --ink-3: #6b645a;
   --accent: #221f1c;
   --on-accent: #fffdf6;
+  --five-ink: var(--ink);
+  --five-sun: #d2502a;
   --sun-ink: #9a6700;
   --earth-ink: #0062cc;
   --both-ink: #1a7f37;
@@ -45,6 +47,7 @@
   --ink-3: #928c83;
   --accent: #f1ece2;
   --on-accent: #0d0e11;
+  --five-ink: var(--ink);
   --sun-ink: #ffb340;
   --earth-ink: #409cff;
   --both-ink: #30d158;
@@ -111,8 +114,22 @@ p { text-wrap: pretty; }
 input[type="range"] { accent-color: var(--accent); }
 :focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 1px; border-radius: 8px; }
 
+/* Ask Five in the dashboard: the window uses the landing page's token names, mapped here to the app's.
+   (On the landing page it renders inside .lnd, which has its own values.) */
+body > .five-host {
+  --card: var(--surface);
+  --card-2: var(--surface-2);
+  --on-ink: var(--on-accent);
+  --sun: #d2502a;
+  --sun-ink: #b6401d;
+  --cream: #fffdf6;
+}
+@keyframes five-typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.45; } 30% { transform: translateY(-3px); opacity: 1; } }
+body > .five-host .lnd-typing { animation: five-typing 1.1s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   body { transition: none; }
+  body > .five-host .lnd-typing { animation: none; }
 }
 
 /* Launch calendar: phone-only bits are hidden on desktop. */
