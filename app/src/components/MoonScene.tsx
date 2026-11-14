@@ -1,6 +1,6 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { earthPose } from '../lib/earthOrient'
@@ -66,6 +66,9 @@ export function useMoonTextures() {
   const procedural = useMemo(() => makeProceduralMoon(), [])
   const [map, setMap] = useState<THREE.Texture>(procedural)
   const [normalMap, setNormalMap] = useState<THREE.Texture | null>(null)
+  // False until the real NASA map arrives, so the cartoon placeholder never flashes on screen.
+  // If the map can't load (offline, blocked), fall back to the placeholder after a few seconds.
+  const [ready, setReady] = useState(false)
   useEffect(() => {
     const loader = new THREE.TextureLoader()
     const aniso = Math.min(8, gl.capabilities.getMaxAnisotropy())
@@ -78,13 +81,16 @@ export function useMoonTextures() {
         t.colorSpace = THREE.SRGBColorSpace
         t.anisotropy = aniso
         setMap(t)
-      }, undefined, () => {})
+        setReady(true)
+      }, undefined, () => { if (!sharp) setReady(true) })
     // Show the 4k map fast, then swap in the 8k one if this device can take it.
     loadColor('/textures/moon_color.jpg', false)
     if (big) loadColor('/textures/moon_color_8k.jpg', true)
     loader.load('/textures/moon_normal.jpg', (t) => { t.anisotropy = aniso; setNormalMap(t) }, undefined, () => {})
+    const fallback = setTimeout(() => setReady(true), 8000)
+    return () => clearTimeout(fallback)
   }, [gl])
-  return { map, normalMap }
+  return { map, normalMap, ready }
 }
 
 interface Props {
@@ -251,8 +257,9 @@ const shortName = (x: Site) => x.name.replace(/\s*\(.*\)\s*/, '')
 let introPlayed = false
 const INTRO_SECONDS = 5
 
-function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProps) {
-  const { map: tex, normalMap } = useMoonTextures()
+function Scene({ site, sites, idx, time, view, specs, els, milkyWay, onReady }: SceneProps & { onReady: () => void }) {
+  const { map: tex, normalMap, ready } = useMoonTextures()
+  useEffect(() => { if (ready) onReady() }, [ready, onReady])
   const sunRef = useRef<THREE.DirectionalLight>(null)
   const markerRef = useRef<THREE.Group>(null)
   const pulseRef = useRef<THREE.Mesh>(null)
@@ -348,7 +355,7 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
     const it = intro.current
     if (it) {
       // Clamp the step: a slow first frame (textures decoding) must not skip the whole spin.
-      it.t = Math.min(1, it.t + Math.min(dt, 1 / 30) / INTRO_SECONDS)
+      if (ready) it.t = Math.min(1, it.t + Math.min(dt, 1 / 30) / INTRO_SECONDS)
       const F = flyTo.current
       const rF = F.length(), pF = Math.acos(F.y / rF), aF = Math.atan2(F.x, F.z)
       // First half: the whole Moon turns in front of you. Second half: dive in and settle over the site.
@@ -426,7 +433,7 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
       {/* Earthshine: sunlight bounced off Earth faintly lights the Moon's night side, more when Earth looks full. */}
       <directionalLight position={earthDir} color="#b4c8ff" intensity={0.45 * earthLit} />
       <directionalLight ref={sunRef} intensity={3.2} color="#fff4e0" position={sunDir} />
-      <mesh>
+      <mesh visible={ready}>
         <sphereGeometry args={[1, 128, 128]} />
         {normalMap ? (
           <meshStandardMaterial map={tex} normalMap={normalMap} normalScale={new THREE.Vector2(1, 1)} roughness={1} metalness={0} />
@@ -434,7 +441,7 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
           <meshStandardMaterial map={tex} roughness={1} metalness={0} bumpMap={tex} bumpScale={0.6} />
         )}
       </mesh>
-      <group ref={markerRef} position={sitePos} scale={Math.abs(site.lat) > 60 ? 0.4 : 1}>
+      <group ref={markerRef} visible={ready} position={sitePos} scale={Math.abs(site.lat) > 60 ? 0.4 : 1}>
         <mesh>
           <circleGeometry args={[0.012, 32]} />
           <meshBasicMaterial color="#3ddc97" />
@@ -456,7 +463,7 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
         maxDistance={7}
       />
       <LabelLayout specs={specs} els={els} />
-      {sites.filter((x) => x.id !== site.id).map((x) => (
+      {ready && sites.filter((x) => x.id !== site.id).map((x) => (
         <mesh key={x.id} position={latLonToVec(x.lat, x.lonEast, 1.003)}>
           <sphereGeometry args={[0.0045, 12, 12]} />
           <meshBasicMaterial color="#f1ece2" />
@@ -481,6 +488,9 @@ function useMilkyWay() {
 }
 
 export default function MoonScene(props: Props) {
+  // Site labels stay hidden until the real Moon map is on screen.
+  const [ready, setReady] = useState(false)
+  const onReady = useCallback(() => setReady(true), [])
   const [view, setView] = useState<{ kind: ViewKind; n: number }>({ kind: 'site', n: 0 })
   const go = (kind: ViewKind) => setView((v) => ({ kind, n: v.n + 1 }))
   const [showFeatures, setShowFeatures] = useState(false)
@@ -492,9 +502,9 @@ export default function MoonScene(props: Props) {
   return (
     <div className="relative h-full w-full">
       <Canvas camera={{ position: [0, 0.4, 3.4], fov: 40, near: 0.01, far: 20000 }} dpr={[1, 2]} gl={{ antialias: true }} className="cursor-grab active:cursor-grabbing">
-        <Scene {...props} view={view} specs={specs} els={els} milkyWay={milkyWay} />
+        <Scene {...props} view={view} specs={specs} els={els} milkyWay={milkyWay} onReady={onReady} />
       </Canvas>
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden={false}>
+      <div className={`pointer-events-none absolute inset-0 overflow-hidden transition-opacity duration-300 ${ready ? 'opacity-100' : 'opacity-0'}`} aria-hidden={false}>
         {specs.map((sp) => (
           <div
             key={sp.key}
