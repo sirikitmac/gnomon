@@ -179,6 +179,29 @@ html:has(.lnd) { background: #f4efe4; }
 @media (hover: hover) and (pointer: fine) {
   .lnd .lnd-badge:hover .lnd-photo img { filter: grayscale(0) contrast(1); }
 }
+.lnd .lnd-strap { height: var(--strap); }
+
+/* Phone (<= 768px): the six badges hang in a 2-column x 3-row grid instead of a side-scrolling row.
+   DOM order gives SIRIKIT|SHERIE, JIANDALE|JODENN, RENE|ANDI; the right column hangs lower via --strap-m. */
+@media (max-width: 768px) {
+  .lnd .lnd-team {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 12px;
+    height: auto;
+    margin-inline: 0;
+    padding-inline: 0;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  .lnd .lnd-team > [role="listitem"] { min-width: 0; }
+  .lnd .lnd-team .lnd-pivot { width: 100%; max-width: 165px; }
+  .lnd .lnd-team .lnd-strap { height: var(--strap-m, var(--strap)); }
+  .lnd .lnd-team .lnd-badge { width: 100%; padding: 12px; }
+  .lnd .lnd-team .lnd-badge-name { font-size: 20px; }
+  .lnd .lnd-team .lnd-photo { width: 72%; }
+  .lnd .lnd-team .lnd-barcode { width: 72px; height: 18px; }
+}
 
 /* Sites marquee */
 @keyframes lnd-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }

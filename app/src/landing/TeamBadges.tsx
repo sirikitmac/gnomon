@@ -10,6 +10,8 @@ import GnomonMark from '../components/GnomonMark'
 export type Member = { name: string; photo?: string }
 
 const STRAPS = [96, 150, 112, 168, 104, 138] // strap lengths in px, varied so the row looks hung by hand
+// Phone (<= 768px) 2x3 grid: shorter straps so three rows fit; the right column (odd index) always hangs ~36px lower.
+const MOBILE_STRAPS = [72, 108, 48, 84, 56, 92]
 
 /** A deterministic barcode for each name, so it never changes between renders. */
 function Barcode({ seed }: { seed: string }) {
@@ -24,7 +26,7 @@ function Barcode({ seed }: { seed: string }) {
     x += w + 1.1
   }
   return (
-    <svg viewBox="0 0 92 22" className="h-[22px] w-[92px]" aria-hidden>
+    <svg viewBox="0 0 92 22" className="lnd-barcode h-[22px] w-[92px]" aria-hidden>
       {bars.map((b, i) => <rect key={i} x={b.x} y={0} width={b.w} height={22} fill="currentColor" />)}
     </svg>
   )
@@ -72,6 +74,7 @@ function Badge({ m, i }: { m: Member; i: number }) {
   const dragging = useRef(false)
   const settle = useRef<number | undefined>(undefined)
   const strap = STRAPS[i % STRAPS.length]
+  const strapMobile = MOBILE_STRAPS[i % MOBILE_STRAPS.length]
   const id = `LP-0${i + 1}`
 
   useEffect(() => () => window.clearTimeout(settle.current), [])
@@ -106,9 +109,13 @@ function Badge({ m, i }: { m: Member; i: number }) {
       transition={{ type: 'spring', stiffness: 70, damping: 11, mass: 1, delay: 0.1 + i * 0.09 }}
       onAnimationComplete={() => nudge(i % 2 ? -7 : 7)}
     >
-      <motion.div ref={pivot} style={{ rotate: reduce ? 0 : rot, transformOrigin: '50% 0%' }} className="flex flex-col items-center">
-        {/* strap */}
-        <div className="lnd-strap flex w-[26px] justify-center overflow-hidden" style={{ height: strap }} aria-hidden>
+      <motion.div ref={pivot} style={{ rotate: reduce ? 0 : rot, transformOrigin: '50% 0%' }} className="lnd-pivot flex flex-col items-center">
+        {/* strap: height comes from --strap (desktop) / --strap-m (phone grid) in landing.css */}
+        <div
+          className="lnd-strap flex w-[26px] justify-center overflow-hidden"
+          style={{ ['--strap' as string]: `${strap}px`, ['--strap-m' as string]: `${strapMobile}px` }}
+          aria-hidden
+        >
           <span className="lnd-strap-text">Lagrange Point · Lagrange Point · Lagrange Point · Lagrange Point</span>
         </div>
         <Clip />
@@ -157,7 +164,7 @@ function Badge({ m, i }: { m: Member; i: number }) {
 export default function TeamBadges({ members }: { members: Member[] }) {
   return (
     <div
-      className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-10 [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-6 lg:gap-2 lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden"
+      className="lnd-team -mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-10 [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-6 lg:gap-2 lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden"
       role="list"
       aria-label="Team members"
     >
