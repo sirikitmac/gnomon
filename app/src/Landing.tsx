@@ -4,7 +4,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import Five, { type FiveMode } from './landing/Five'
 import './landing/landing.css'
 
-const HeroMoon = lazy(() => import('./landing/HeroMoon'))
+const MoonStage = lazy(() => import('./landing/MoonStage'))
 
 const EASE = [0.23, 1, 0.32, 1] as const
 
@@ -215,11 +215,8 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
 
   return (
     <section id="top" ref={ref} className="relative h-[230vh]" aria-label="Lunalit">
-      <div className="sticky top-0 h-[100svh] p-2 sm:p-3">
-        <div className="relative h-full overflow-hidden rounded-[28px] bg-[radial-gradient(120%_90%_at_70%_40%,#151a23_0%,#07090d_60%)] sm:rounded-[36px]">
-          <Suspense fallback={null}>
-            <HeroMoon progress={scrollYProgress} reduce={reduce} />
-          </Suspense>
+      <div className="sticky top-0 h-[100svh]">
+        <div className="relative h-full overflow-hidden">
 
           {/* Headline block */}
           <motion.div style={{ opacity: textOpacity, y: textY }} className="absolute inset-x-0 bottom-0 px-5 pb-8 sm:px-10 sm:pb-12 lg:px-14 lg:pb-14">
@@ -263,7 +260,7 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
             initial={reduce ? false : { opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.9, ease: EASE, delay: 0.9 }}
-            className="absolute bottom-8 right-8 hidden w-[340px] rounded-[26px] bg-[#fbf8f1]/95 p-2 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] backdrop-blur-xl lg:block"
+            className="light absolute bottom-8 right-8 hidden w-[340px] rounded-[26px] bg-[#fbf8f1]/95 p-2 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] backdrop-blur-xl lg:block"
             aria-label="Example site"
           >
             <div className="rounded-[20px] bg-[var(--card)] p-5">
@@ -320,7 +317,7 @@ function Statement() {
   const text = 'At the Moon’s south pole the Sun never climbs more than a few degrees. One ridge on the horizon decides whether a lander has power, and a few days’ delay can decide whether it survives.'
   const words = text.split(' ')
   return (
-    <section className="mx-auto max-w-[1100px] px-5 py-[18vh] sm:px-8">
+    <section id="statement" className="relative mx-auto max-w-[1100px] px-5 py-[22vh] sm:px-8">
       <p ref={ref} className="h2 text-[var(--ink)]">
         {words.map((w, i) => (
           <Word key={i} progress={scrollYProgress} range={[i / words.length, (i + 1) / words.length]}>{w}</Word>
@@ -344,9 +341,9 @@ function Check({ dark }: { dark?: boolean }) {
 
 function BeforeAfter() {
   return (
-    <section className="relative mx-auto max-w-[760px] px-5 pb-[16vh] sm:px-8" aria-label="Without and with Lunalit">
+    <section id="compare" className="relative mx-auto max-w-[760px] px-5 pb-[16vh] sm:px-8" aria-label="Without and with Lunalit">
       <div className="sticky top-24 sm:top-28">
-        <div className="card p-7 sm:p-10">
+        <div className="glass p-7 sm:p-10">
           <p className="small text-[var(--ink-2)]">Without Lunalit</p>
           <h3 className="h3 mt-3 max-w-[18ch]">Hours across three NASA tools.</h3>
           <ul className="mt-16 flex flex-col gap-3.5 sm:mt-24">
@@ -357,13 +354,13 @@ function BeforeAfter() {
         </div>
       </div>
       <div className="sticky top-32 mt-[40vh] sm:top-36">
-        <div className="relative overflow-hidden rounded-[32px] bg-[var(--ink)] p-7 text-[var(--cream)] shadow-[0_40px_90px_-40px_rgb(34_31_28/0.8)] sm:p-10" style={{ ['--five-ink' as string]: '#fbf8f1' }}>
-          <p className="small text-[#fffdf6]/60">With Lunalit</p>
+        <div className="card relative overflow-hidden p-7 shadow-[0_40px_90px_-40px_rgb(0_0_0/0.9)] sm:p-10">
+          <p className="small text-[var(--ink-2)]">With Lunalit</p>
           <h3 className="h3 mt-3 max-w-[18ch]">A verdict in seconds.</h3>
           <div className="absolute right-6 top-6 sm:right-10 sm:top-9"><Five size={64} mode="idle" title="Five" /></div>
           <ul className="mt-16 flex flex-col gap-3.5 sm:mt-24">
             {WITH.map((t) => (
-              <li key={t} className="flex items-center gap-3 text-[15px] font-semibold tracking-[-0.02em] text-[var(--cream)]"><Check dark />{t}</li>
+              <li key={t} className="flex items-center gap-3 text-[15px] font-semibold tracking-[-0.02em] text-[var(--ink)]"><Check dark />{t}</li>
             ))}
           </ul>
         </div>
@@ -376,7 +373,7 @@ function HowItWorks() {
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref, { once: true, margin: '0px 0px -20% 0px' })
   return (
-    <section id="how" className="mx-auto max-w-[1240px] scroll-mt-28 px-5 py-[14vh] sm:px-8">
+    <section id="how" className="relative mx-auto max-w-[1240px] scroll-mt-28 px-5 py-[14vh] sm:px-8">
       <div ref={ref} className="flex flex-wrap items-end justify-between gap-8">
         <Reveal>
           <p className="small text-[var(--ink-2)]">How it works</p>
@@ -387,7 +384,7 @@ function HowItWorks() {
       <ol className="mt-14 grid gap-3 md:grid-cols-3">
         {STEPS.map((s, i) => (
           <li key={s.n}><Reveal delay={i * 0.1} className="h-full">
-            <div className="card flex h-full flex-col p-7">
+            <div className="glass flex h-full flex-col p-7">
               <div className="flex items-center justify-between">
                 <span className="chip">Step</span>
                 <span className="tabular text-[15px] font-semibold text-[var(--ink-2)]">{s.n}</span>
@@ -404,7 +401,7 @@ function HowItWorks() {
 
 function Features() {
   return (
-    <section id="features" className="mx-auto max-w-[1240px] scroll-mt-28 px-5 pb-[10vh] sm:px-8">
+    <section id="features" className="relative mx-auto max-w-[1240px] scroll-mt-28 px-5 pb-[10vh] sm:px-8">
       <Reveal>
         <p className="small text-[var(--ink-2)]">Features</p>
         <h2 className="h2 mt-3 max-w-[20ch]">What a landing team asks, answered on one screen.</h2>
@@ -625,11 +622,18 @@ export default function Landing({ onOpenDashboard }: { onOpenDashboard: () => vo
     <div className="lnd min-h-screen">
       <Nav onOpen={onOpenDashboard} />
       <main>
-        <Hero onOpen={onOpenDashboard} reduce={reduce} />
-        <Statement />
-        <BeforeAfter />
-        <HowItWorks />
-        <Features />
+        {/* The "space" part: one Moon behind all of these sections, moving as you scroll */}
+        <div className="zone relative mx-2 mt-2 overflow-clip rounded-[28px] sm:mx-3 sm:mt-3 sm:rounded-[36px]">
+          <Suspense fallback={null}>
+            <MoonStage reduce={reduce} />
+          </Suspense>
+          <Hero onOpen={onOpenDashboard} reduce={reduce} />
+          <Statement />
+          <BeforeAfter />
+          <HowItWorks />
+          <Features />
+          <div id="zone-end" aria-hidden />
+        </div>
         <Validation />
         <Sites />
         <MeetFive />

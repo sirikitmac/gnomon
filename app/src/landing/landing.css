@@ -85,6 +85,32 @@
 
 .lnd a:focus-visible, .lnd button:focus-visible { outline: 2px solid var(--sun); outline-offset: 3px; border-radius: 999px; }
 
+/* The dark "space" zone at the top: one Moon behind several sections */
+.lnd .zone {
+  --ink: #fffdf6;
+  --ink-2: rgb(255 253 246 / 0.7);
+  --card-2: rgb(255 255 255 / 0.1);
+  --line: rgb(255 255 255 / 0.1);
+  --five-ink: #fffdf6;
+  color: var(--ink);
+  background: radial-gradient(120% 60% at 70% 8%, #151a23 0%, #07090d 55%), #07090d;
+}
+.lnd .zone .card, .lnd .zone .light {
+  --ink: #221f1c;
+  --ink-2: #5c564d;
+  --card-2: #ece5d6;
+  --line: rgb(34 31 28 / 0.1);
+  --five-ink: #221f1c;
+  color: var(--ink);
+}
+.lnd .glass {
+  border-radius: 32px;
+  background: rgb(14 17 24 / 0.62);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.11), 0 30px 80px -40px rgb(0 0 0 / 0.8);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+
 /* Sites marquee */
 @keyframes lnd-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .lnd .marquee { animation: lnd-marquee 60s linear infinite; }
