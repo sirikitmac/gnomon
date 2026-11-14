@@ -22,7 +22,7 @@ function Stat({ label, value, bar, color, delta, note }: { label: string; value:
       <div className="mt-1 font-display text-2xl font-semibold tabular leading-none">{value}</div>
       {bar !== undefined && (
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2">
-          <motion.div className="h-full rounded-full" style={{ background: color }} initial={false} animate={{ width: `${bar}%` }} transition={{ duration: 0.4, ease: [0.645, 0.045, 0.355, 1] }} />
+          <motion.div className="h-full rounded-full" style={{ background: color }} initial={false} animate={{ width: `${bar}%` }} transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }} />
         </div>
       )}
       {note && <div className="mt-1.5 text-[11px] leading-snug text-ink-3 tabular">{note}</div>}
@@ -31,9 +31,13 @@ function Stat({ label, value, bar, color, delta, note }: { label: string; value:
   )
 }
 
-export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, earthMaskDeg, flush = false }: { ds: Dataset; a: Analysis; slipped: Analysis | null; slipDays: number; needComms: boolean; earthMaskDeg: number; flush?: boolean }) {
+export default function SummaryStrip({ ds, a: full, slipped, slipDays, needComms, earthMaskDeg, flush = false, soFar }: { ds: Dataset; a: Analysis; slipped: Analysis | null; slipDays: number; needComms: boolean; earthMaskDeg: number; flush?: boolean
+  /** While the Orbit timelapse plays: the numbers from landing up to now. The verdict stays the whole mission's. */
+  soFar?: { a: Analysis; label: string } | null }) {
+  const a = full
   const w = a.firstWindow
-  const s = slipped && slipDays > 0 ? slipped : null
+  const s = slipped && slipDays > 0 && !soFar ? slipped : null
+  const n = soFar?.a ?? a
   return (
     <section className={`grid overflow-hidden lg:grid-cols-[minmax(260px,1.3fr)_repeat(4,minmax(0,1fr))] ${flush ? 'bg-transparent' : 'rounded-[14px] bg-surface shadow-card'}`}>
       <div className="flex items-start gap-4 border-b border-line p-4 lg:border-b-0 lg:border-r">
@@ -76,12 +80,12 @@ export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, eart
         </div>
       </div>
       <div className="grid grid-cols-2 divide-line sm:grid-cols-4 lg:col-span-4 lg:divide-x [&>*]:border-line max-sm:[&>*:nth-child(-n+2)]:border-b">
-        <Stat label="Sunlight" value={`${Math.round(a.sunPct)}%`} bar={a.sunPct} color="var(--sun)" delta={s && <Delta v={s.sunPct - a.sunPct} />}
-          note={a.sunPartialPct >= 0.5 ? `Sun only partly up ${Math.round(a.sunPartialPct)}% of the time` : undefined} />
-        <Stat label="Earth in view" value={`${Math.round(a.earthPct)}%`} bar={a.earthPct} color="var(--earth)" delta={s && <Delta v={s.earthPct - a.earthPct} />}
-          note={a.earthMarginalPct >= 0.5 ? `${Math.round(a.earthMarginalPct)}% marginal: under ${earthMaskDeg > 0 ? earthMaskDeg : MARGINAL_DEG}° above the ridge` : undefined} />
-        <Stat label="Both at once" value={`${Math.round(a.bothPct)}%`} bar={a.bothPct} color="var(--both)" delta={s && <Delta v={s.bothPct - a.bothPct} />} />
-        <Stat label="Longest blackout" value={fmtHours(a.longestBlackoutH)} delta={s && <Delta v={s.longestBlackoutH - a.longestBlackoutH} unit="h" invert />} />
+        <Stat label="Sunlight" value={`${Math.round(n.sunPct)}%`} bar={n.sunPct} color="var(--sun)" delta={s && <Delta v={s.sunPct - a.sunPct} />}
+          note={soFar ? soFar.label : n.sunPartialPct >= 0.5 ? `Sun only partly up ${Math.round(n.sunPartialPct)}% of the time` : undefined} />
+        <Stat label="Earth in view" value={`${Math.round(n.earthPct)}%`} bar={n.earthPct} color="var(--earth)" delta={s && <Delta v={s.earthPct - a.earthPct} />}
+          note={soFar ? soFar.label : n.earthMarginalPct >= 0.5 ? `${Math.round(n.earthMarginalPct)}% marginal: under ${earthMaskDeg > 0 ? earthMaskDeg : MARGINAL_DEG}° above the ridge` : undefined} />
+        <Stat label="Both at once" note={soFar?.label} value={`${Math.round(n.bothPct)}%`} bar={n.bothPct} color="var(--both)" delta={s && <Delta v={s.bothPct - a.bothPct} />} />
+        <Stat label="Longest blackout" note={soFar?.label} value={fmtHours(n.longestBlackoutH)} delta={s && <Delta v={s.longestBlackoutH - a.longestBlackoutH} unit="h" invert />} />
       </div>
     </section>
   )
