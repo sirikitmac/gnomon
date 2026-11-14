@@ -90,7 +90,7 @@ function SidebarSection({ title, hint, defaultOpen = true, children }: { title: 
   )
 }
 
-function Panel({ id, title, hint, children, className = '' }: { id?: string; title?: string; hint?: string; children: React.ReactNode; className?: string }) {
+function Panel({ id, title, hint, action, children, className = '' }: { id?: string; title?: string; hint?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
   const [open, setOpen] = useState(true)
   return (
     <section id={id} className={`scroll-mt-20 border-b border-line bg-surface/92 backdrop-blur-2xl last:border-b-0 ${className}`}>
@@ -100,6 +100,8 @@ function Panel({ id, title, hint, children, className = '' }: { id?: string; tit
             <h2 className="font-display text-[15px] font-semibold">{title}</h2>
             {hint && <span className="text-xs text-ink-3">{hint}</span>}
           </div>
+          <div className="flex items-center gap-2">
+          {action}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -111,6 +113,7 @@ function Panel({ id, title, hint, children, className = '' }: { id?: string; tit
               <path d="M4 6l4 4 4-4" />
             </svg>
           </button>
+          </div>
         </header>
       )}
       {open && <div className={title ? 'px-5 pb-5' : 'p-5'}>{children}</div>}
@@ -726,12 +729,22 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
 
                     {view === 'compare' && (
                       <>
-                        <PageHead title="Compare sites" text="Your chosen sites with the same landing date and mission settings. Add or remove sites below; click a row to make it your site." />
-                        <Panel id="all-sites" title="Sites">
-                          <CompareSites sites={ds.sites} ids={compareIds} onChange={setCompareIds} />
-                          <CompareTable ds={ds} mission={mission} ids={compareIds} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
+                        <PageHead
+                          title="Compare sites"
+                          text={`Every site with the same landing, ${fmtDate(idxToDate(ds, mission.startIdx))}, for a ${Math.round(mission.durationH / 24)}-day mission that needs ${mission.needComms ? 'both sunlight and a view of Earth' : 'sunlight'}.`}
+                        />
+                        <Panel id="all-sites" title="Sites" action={<CompareSites sites={ds.sites} ids={compareIds} onChange={setCompareIds} chips={false} />}>
+                          <CompareTable
+                            ds={ds}
+                            mission={mission}
+                            ids={compareIds}
+                            selectedId={site.id}
+                            onSelect={setSiteId}
+                            onRemove={(id) => { if (compareIds.length > 1) setCompareIds(compareIds.filter((x) => x !== id)) }}
+                            onLanding={setLanding}
+                          />
                         </Panel>
-                        <Panel id="planner" title="Plan it for me" hint="Best site and landing date for your mission settings">
+                        <Panel id="planner" title="Not sure when to land?" hint="Search every site and landing time for these settings">
                           <PlanPanel
                             ds={ds}
                             mission={mission}
