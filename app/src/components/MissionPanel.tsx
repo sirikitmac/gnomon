@@ -107,7 +107,7 @@ export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, no
         <input type="range" min={0} max={14} value={mission.slipDays} onChange={(e) => onChange({ ...mission, slipDays: +e.target.value })} className="[accent-color:var(--color-risk)]" />
       </label>
 
-      <button onClick={onBest} className="min-h-10 rounded-[8px] bg-accent px-3 py-2 text-[13px] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 ease-out hover:brightness-105 active:scale-[0.97]">
+      <button onClick={onBest} className="min-h-10 rounded-[8px] bg-accent px-3 py-2 text-[13px] font-medium text-on-accent shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 ease-out hover:brightness-105 active:scale-[0.97]">
         Find the best landing date
       </button>
       <button onClick={onPlan} className="-mt-2 min-h-10 rounded-[8px] bg-surface px-3 py-2 text-[13px] font-medium text-accent shadow-control transition-[transform,background-color] duration-100 ease-out hover:bg-accent/5 active:scale-[0.97]">

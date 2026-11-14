@@ -8,7 +8,7 @@ const roleDot: Record<string, string> = {
   'Science trade-off': 'bg-risk',
   'Real mission': 'bg-both',
   Contrast: 'bg-ink-3',
-  'Artemis candidate': 'bg-accent',
+  'Artemis candidate': 'bg-[#8a6bd1]',
 }
 
 export default function SitePicker({ sites, value, onChange }: { sites: Site[]; value: string; onChange: (id: string) => void }) {
@@ -37,23 +37,23 @@ function SiteList({ sites, value, onChange }: { sites: Site[]; value: string; on
             key={s.id}
             onClick={() => onChange(s.id)}
             aria-pressed={active}
-            className={`relative rounded-[9px] px-3 py-2 text-left transition-colors duration-150 ease-out active:scale-[0.985] ${active ? 'text-white' : 'hover:bg-surface-2'}`}
+            className={`relative rounded-[12px] px-3 py-2 text-left transition-colors duration-150 ease-out active:scale-[0.985] ${active ? 'text-on-accent' : 'hover:bg-surface-2'}`}
           >
             {active && (
               <motion.span
                 layoutId="site-active"
-                className="absolute inset-0 rounded-[9px] bg-accent shadow-control"
+                className="absolute inset-0 rounded-[12px] bg-accent shadow-control"
                 transition={{ type: 'spring', duration: 0.3, bounce: 0.08 }}
               />
             )}
             <span className="relative flex items-center justify-between gap-2">
               <span className="truncate text-[13px] font-medium">{s.name}</span>
-              <span className={`flex shrink-0 items-center gap-1.5 text-[11px] ${active ? 'text-white/80' : 'text-ink-3'}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-white' : roleDot[s.role] ?? 'bg-ink-3'}`} />
+              <span className={`flex shrink-0 items-center gap-1.5 text-[11px] ${active ? 'text-on-accent/80' : 'text-ink-3'}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-on-accent' : roleDot[s.role] ?? 'bg-ink-3'}`} />
                 {s.role}
               </span>
             </span>
-            <span className={`relative mt-0.5 block text-[11px] tabular ${active ? 'text-white/70' : 'text-ink-3'}`}>
+            <span className={`relative mt-0.5 block text-[11px] tabular ${active ? 'text-on-accent/70' : 'text-ink-3'}`}>
               {Math.abs(s.lat).toFixed(1)}°{s.lat < 0 ? 'S' : 'N'} · {Math.abs(s.lonEast).toFixed(1)}°{s.lonEast < 0 ? 'W' : 'E'}
             </span>
           </button>

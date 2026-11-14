@@ -92,7 +92,7 @@ export default function CompareSites({ sites, ids, onChange }: { sites: Site[]; 
                   key={s.id}
                   role="menuitem"
                   onClick={() => { add(s.id); if (rest.length === 1) { setOpen(false); trigger.current?.focus() } }}
-                  className="flex w-full flex-col rounded-[8px] px-3 py-2 text-left outline-none transition-colors duration-100 hover:bg-accent hover:text-white focus-visible:bg-accent focus-visible:text-white [&:focus-visible_.detail]:text-white/80 [&:hover_.detail]:text-white/80"
+                  className="flex w-full flex-col rounded-[8px] px-3 py-2 text-left outline-none transition-colors duration-100 hover:bg-accent hover:text-on-accent focus-visible:bg-accent focus-visible:text-on-accent [&:focus-visible_.detail]:text-on-accent/80 [&:hover_.detail]:text-on-accent/80"
                 >
                   <span className="text-[13px] font-medium">{s.name}</span>
                   <span className="detail text-xs text-ink-3 tabular">

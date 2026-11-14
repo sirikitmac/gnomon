@@ -84,7 +84,7 @@ export function MenuItem({ title, detail, onSelect, disabled, icon }: { title: s
       role="menuitem"
       disabled={disabled}
       onClick={onSelect}
-      className="flex w-full items-start gap-3 rounded-[8px] px-3 py-2 text-left outline-none transition-colors duration-100 hover:bg-accent hover:text-white focus-visible:bg-accent focus-visible:text-white disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-ink [&:hover_.detail]:text-white/80 [&:focus-visible_.detail]:text-white/80"
+      className="flex w-full items-start gap-3 rounded-[8px] px-3 py-2 text-left outline-none transition-colors duration-100 hover:bg-accent hover:text-on-accent focus-visible:bg-accent focus-visible:text-on-accent disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-ink [&:hover_.detail]:text-on-accent/80 [&:focus-visible_.detail]:text-on-accent/80"
     >
       {icon && <span className="mt-0.5 shrink-0">{icon}</span>}
       <span className="min-w-0">
