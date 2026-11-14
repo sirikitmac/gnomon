@@ -343,8 +343,13 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
             Scroll to move the Sun
           </motion.div>
 
-          {/* Mid-scroll line while the light sweeps, over a dark fade so it reads on the bright Moon */}
-          <motion.div style={{ opacity: lineOpacity }} className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-[linear-gradient(to_top,rgb(7_9_13/0.92),rgb(7_9_13/0.55)_45%,transparent)]" aria-hidden />
+          {/* Mid-scroll line while the light sweeps. A soft oval shade sits behind just the text and fades
+              out on every side, so no edge shows across the Moon as the hero scrolls away. */}
+          <motion.div
+            style={{ opacity: lineOpacity, y: lineY }}
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[60%] bg-[radial-gradient(ellipse_46%_38%_at_50%_80%,rgb(7_9_13/0.82),rgb(7_9_13/0.5)_45%,transparent_100%)] sm:bg-[radial-gradient(ellipse_34%_32%_at_50%_80%,rgb(7_9_13/0.8),rgb(7_9_13/0.45)_45%,transparent_100%)]"
+            aria-hidden
+          />
           <motion.p
             style={{ opacity: lineOpacity, y: lineY }}
             className="pointer-events-none absolute inset-x-0 bottom-10 px-6 text-center text-[clamp(22px,2.6vw,34px)] font-normal tracking-[-0.035em] text-[var(--cream)] sm:bottom-14"
