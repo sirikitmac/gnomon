@@ -94,3 +94,44 @@ export function earthPose(t: Date, earthDir: V3) {
     equatorial: [toScene(eqToEcl([1, 0, 0])), toScene(eqToEcl([0, 1, 0])), toScene(eqToEcl([0, 0, 1]))] as [V3, V3, V3],
   }
 }
+
+/**
+ * The Earth–Moon–Sun system for the Orbit view, in the ecliptic frame centred on Earth
+ * (x = vernal equinox, z = ecliptic north), distances in Moon radii.
+ * earthDir is the Moon-fixed unit vector to Earth (from Horizons, via a site's az/el); with the
+ * Moon's spin axis it fixes how the Moon is turned (same TRIAD method as earthPose).
+ * moonToEcl maps Moon-fixed scene vectors (+y = Moon's north pole) into this frame.
+ */
+export function orbitPose(t: Date, earthDir: V3) {
+  const m = moonEcliptic(t)
+  const moonGeo = scale(unit(m.lon, m.lat), m.km / MOON_RADIUS_KM)
+  const sun = unit(sunEclipticLon(t), 0)
+  const eEcl = norm(scale(moonGeo, -1))
+  const d = daysSinceJ2000(t)
+  const E1 = 125.045 - 0.0529921 * d
+  const moonPole = eqToEcl(unit(269.9949 - 3.8787 * sin(E1), 66.5392 + 1.5419 * cos(E1)))
+  const triad = (a: V3, b: V3) => {
+    const t1 = norm(a)
+    const t2 = norm(cross(a, b))
+    return [t1, t2, cross(t1, t2)] as const
+  }
+  const v = triad(eEcl, moonPole)
+  const w = triad(earthDir, [0, 1, 0])
+  const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+  const moonToEcl = (p: V3): V3 => {
+    const a = dot(p, w[0]), b = dot(p, w[1]), c = dot(p, w[2])
+    return [a * v[0][0] + b * v[1][0] + c * v[2][0], a * v[0][1] + b * v[1][1] + c * v[2][1], a * v[0][2] + b * v[1][2] + c * v[2][2]]
+  }
+  const g = gmst(t)
+  return {
+    moonPos: moonGeo,
+    moonKm: m.km,
+    sun,
+    moonPole,
+    moonToEcl,
+    earthNorth: eqToEcl([0, 0, 1]),
+    earthGreenwich: eqToEcl([cos(g), sin(g), 0]),
+    /** Moon's axis tilt from the ecliptic pole, in degrees (about 1.5°). */
+    moonTiltDeg: Math.acos(Math.max(-1, Math.min(1, moonPole[2]))) / RAD,
+  }
+}

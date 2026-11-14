@@ -9,7 +9,7 @@ import { Earth, MilkyWay, StarField, Sun } from './SkyBodies'
 import type { Site } from '../lib/types'
 
 /** Same lat/lon → xyz mapping three.js uses for equirectangular textures on SphereGeometry. */
-function latLonToVec(lat: number, lon: number, r = 1): THREE.Vector3 {
+export function latLonToVec(lat: number, lon: number, r = 1): THREE.Vector3 {
   const phi = (90 - lat) * (Math.PI / 180)
   const theta = (lon + 180) * (Math.PI / 180)
   return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta))
@@ -61,7 +61,7 @@ function makeProceduralMoon(): THREE.CanvasTexture {
  * normal map derived from the LOLA elevation map (5x vertical exaggeration) for crater shading.
  * Uses the 8k color map when the GPU allows it, otherwise 4k. Falls back to a procedural Moon.
  */
-function useMoonTextures() {
+export function useMoonTextures() {
   const { gl } = useThree()
   const procedural = useMemo(() => makeProceduralMoon(), [])
   const [map, setMap] = useState<THREE.Texture>(procedural)

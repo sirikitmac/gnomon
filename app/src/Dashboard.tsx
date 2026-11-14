@@ -35,18 +35,19 @@ import type { Dataset, Mission, PlanState, SunMode } from './lib/types'
 
 const MoonScene = lazy(() => import('./components/MoonScene'))
 const SiteScene = lazy(() => import('./components/SiteScene'))
+const OrbitScene = lazy(() => import('./components/OrbitScene'))
 
-type MoonMode = 'globe' | 'site3d'
+type MoonMode = 'globe' | 'site3d' | 'orbit'
 const MOON_MODE_KEY = 'rocky.moonMode'
 function readMoonMode(): MoonMode {
-  try { return sessionStorage.getItem(MOON_MODE_KEY) === 'site3d' ? 'site3d' : 'globe' } catch { return 'globe' }
+  try { const v = sessionStorage.getItem(MOON_MODE_KEY); return v === 'site3d' || v === 'orbit' ? v : 'globe' } catch { return 'globe' }
 }
 
 /** "Globe | Site 3D" switch for the Moon panel, styled like the panel's other dark controls. */
 function MoonModeSwitch({ value, onChange }: { value: MoonMode; onChange: (m: MoonMode) => void }) {
   return (
     <div role="radiogroup" aria-label="Moon view" className="pointer-events-auto absolute left-8 top-3 z-20 flex rounded-full bg-[#0e1118]/75 p-0.5 ring-1 ring-white/15 backdrop-blur">
-      {([['globe', 'Globe', 'The whole Moon with every site'], ['site3d', 'Site 3D', 'Real terrain around the selected site, lit at the mission time']] as const).map(([m, label, title]) => (
+      {([['globe', 'Globe', 'The whole Moon with every site'], ['site3d', 'Site 3D', 'Real terrain around the selected site, lit at the mission time'], ['orbit', 'Orbit', 'Earth, Moon and Sun from outside, as a timelapse: why the light at the site changes']] as const).map(([m, label, title]) => (
         <button
           key={m}
           type="button"
@@ -169,6 +170,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
   const askButton = useRef<HTMLButtonElement>(null)
   const closeAsk = useCallback(() => { setAskOpen(false); askButton.current?.focus() }, [])
   const [moonMode, setMoonModeState] = useState<MoonMode>(readMoonMode)
+  const [orbitPlaying, setOrbitPlaying] = useState(false)
   const setMoonMode = (m: MoonMode) => {
     setMoonModeState(m)
     try { sessionStorage.setItem(MOON_MODE_KEY, m) } catch { /* storage blocked: the choice lasts until reload */ }
@@ -485,6 +487,14 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
       setCursor(i)
     }
     const cur = Math.max(a.startIdx, Math.min(a.endIdx - 1, cursor))
+    // Orbit timelapse playing: the top bar shows the mission so far, filling up as it plays.
+    const soFar = moonMode === 'orbit' && orbitPlaying
+      ? (() => {
+          const steps = cur - a.startIdx + 1
+          const days = (steps * ds.meta.stepHours) / 24
+          return { a: analyze(ds, site, a.startIdx, { ...mission, durationH: steps * ds.meta.stepHours }), label: `So far: day ${Math.min(Math.ceil(days), Math.round(mission.durationH / 24))} of ${Math.round(mission.durationH / 24)}` }
+        })()
+      : null
     const stageVars = {
       '--map-top': `${mapInsets.top}px`,
       '--map-right': `${mapInsets.right}px`,
@@ -496,9 +506,11 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
       <div ref={stageRef} className="relative flex min-h-0 flex-1 overflow-hidden bg-[#05070c]" style={stageVars}>
         {/* Fullscreen 3D Moon / Site 3D viewport (Google Maps style background layer) */}
         <section id="moon-view" className="absolute inset-0 z-0 overflow-hidden bg-[#05070c]">
-          <Suspense fallback={<div className="grid h-full place-items-center text-sm text-[#b3ac9f]">{moonMode === 'globe' ? 'Loading Moon…' : 'Loading terrain…'}</div>}>
+          <Suspense fallback={<div className="grid h-full place-items-center text-sm text-[#b3ac9f]">{moonMode === 'site3d' ? 'Loading terrain…' : 'Loading Moon…'}</div>}>
             {moonMode === 'globe'
               ? <MoonScene site={site} sites={ds.sites} idx={cur} time={idxToDate(ds, cur)} onSelect={setSiteId} />
+              : moonMode === 'orbit'
+              ? <OrbitScene ds={ds} site={site} cursor={cur} range={[a.startIdx, a.endIdx]} onCursor={setCursor} onPlayingChange={setOrbitPlaying} />
               : <SiteScene
                   site={site}
                   idx={cur}
@@ -570,7 +582,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                           <ScenarioBanner scenario={scenario} onClose={() => setScenario(null)} />
                         </div>
                       )}
-                      <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} earthMaskDeg={earthMaskDeg} flush />
+                      <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} earthMaskDeg={earthMaskDeg} flush soFar={soFar} />
                     </div>
                   )}
                   {isPhone && !topOpen && (
