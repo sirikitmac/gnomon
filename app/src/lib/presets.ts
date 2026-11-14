@@ -1,4 +1,4 @@
-import { analyze, dateToIdx, perDay } from './engine'
+import { analyze, dateToIdx, DEFAULT_RULES, perDay } from './engine'
 import type { Dataset, PlanState, SunMode, Verdict } from './types'
 
 export interface Preset {
@@ -15,6 +15,8 @@ export interface Preset {
   needComms: boolean
   slipDays: number
   sunMode: SunMode
+  /** Minimum Earth clearance for this story; defaults to the app default. */
+  earthMaskDeg?: number
   /** What the data shows for this preset; checked in dev so the text never drifts from the data. */
   expect: { siteId: string; verdict: Verdict; slipped?: boolean }[]
 }
@@ -118,7 +120,7 @@ export function resolvePreset(ds: Dataset, p: Preset): PlanState | null {
   const startIdx = dateToIdx(ds, new Date(p.landing))
   const end = startIdx + (p.days * 24) / ds.meta.stepHours + p.slipDays * perDay(ds)
   if (startIdx < 0 || end > ds.meta.count) return null
-  return { siteId: p.siteId, startIdx, durationH: p.days * 24, needComms: p.needComms, slipDays: p.slipDays, sunMode: p.sunMode }
+  return { siteId: p.siteId, startIdx, durationH: p.days * 24, needComms: p.needComms, slipDays: p.slipDays, sunMode: p.sunMode, earthMaskDeg: p.earthMaskDeg ?? DEFAULT_RULES.earthMaskDeg }
 }
 
 /** Mismatches between a preset's expectations and the data (pass a dataset already in the preset's Sun mode). */

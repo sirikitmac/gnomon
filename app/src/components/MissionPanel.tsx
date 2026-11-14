@@ -5,7 +5,7 @@ function toLocalInput(d: Date) {
   return d.toISOString().slice(0, 16)
 }
 
-export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, nowIndex, onNow, sunMode, onSunMode }: {
+export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, nowIndex, onNow, sunMode, onSunMode, earthMaskDeg, onEarthMask }: {
   ds: Dataset
   mission: Mission
   onChange: (m: Mission) => void
@@ -15,6 +15,8 @@ export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, no
   onNow: (idx: number) => void
   sunMode: SunMode
   onSunMode: (m: SunMode) => void
+  earthMaskDeg: number
+  onEarthMask: (deg: number) => void
 }) {
   const start = idxToDate(ds, mission.startIdx)
   const min = toLocalInput(idxToDate(ds, 0))
@@ -85,6 +87,17 @@ export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, no
           ))}
         </div>
       </div>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="flex justify-between text-xs text-ink-3">
+          <span>Earth must clear the ridge by</span>
+          <span className="tabular font-medium text-ink">{earthMaskDeg === 0 ? 'any amount' : `${earthMaskDeg}°`}</span>
+        </span>
+        <input type="range" min={0} max={5} step={1} value={earthMaskDeg} onChange={(e) => onEarthMask(+e.target.value)} aria-describedby="earth-mask-help" />
+        <span id="earth-mask-help" className="text-[11px] leading-snug text-ink-3">
+          Close to the ridge the antenna looks along the ground, so low contact is flagged as marginal. Raise this to make the verdict require clearance; set it from your radio&rsquo;s needs.
+        </span>
+      </label>
 
       <label id="slip-test" className="-m-1.5 flex flex-col gap-1.5 rounded-[10px] p-1.5">
         <span className="flex justify-between text-xs text-ink-3">

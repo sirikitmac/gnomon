@@ -1,4 +1,4 @@
-import type { Analysis, Dataset, Mission, Site, SunMode, Verdict } from './types'
+import type { Analysis, Dataset, Mission, Rules, Site, Verdict } from './types'
 
 export const HOUR = 3600_000
 
@@ -12,10 +12,13 @@ export function dateToIdx(ds: Dataset, d: Date): number {
 
 export const clampIdx = (ds: Dataset, i: number) => Math.max(0, Math.min(ds.meta.count - 1, i))
 
+/** Earth flags used for comms: the usable-link series when rules were applied, else line of sight. */
+export const linkFlags = (site: Site): number[] => site.series.earthLink ?? site.series.earthVis
+
 /** 1 when the mission's power (and, if required, comms) need is met at sample i. */
 export function requiredAt(site: Site, i: number, needComms: boolean): number {
   const s = site.series
-  return needComms ? s.sunVis[i] & s.earthVis[i] : s.sunVis[i]
+  return needComms ? s.sunVis[i] & linkFlags(site)[i] : s.sunVis[i]
 }
 
 export function analyze(ds: Dataset, site: Site, startIdx: number, mission: Mission): Analysis {
@@ -23,12 +26,18 @@ export function analyze(ds: Dataset, site: Site, startIdx: number, mission: Miss
   const n = Math.max(1, Math.round(mission.durationH / step))
   const s0 = clampIdx(ds, startIdx)
   const s1 = Math.min(ds.meta.count, s0 + n)
-  const { sunVis, earthVis } = site.series
-  let sun = 0, earth = 0, both = 0, req = 0, gap = 0, longest = 0
+  const { sunVis, earthVis, sunFrac, earthLow } = site.series
+  const link = linkFlags(site)
+  let sun = 0, earth = 0, both = 0, req = 0, gap = 0, longest = 0, disc = 0, partial = 0, linked = 0, low = 0
   for (let i = s0; i < s1; i++) {
     sun += sunVis[i]
     earth += earthVis[i]
-    both += sunVis[i] & earthVis[i]
+    linked += link[i]
+    low += earthLow ? earthLow[i] : 0
+    both += sunVis[i] & link[i]
+    const f = sunFrac ? sunFrac[i] : sunVis[i]
+    disc += f
+    if (f > 0.001 && f < 0.999) partial++
     const r = requiredAt(site, i, mission.needComms)
     req += r
     gap = r ? 0 : gap + step
@@ -46,6 +55,10 @@ export function analyze(ds: Dataset, site: Site, startIdx: number, mission: Miss
     longestBlackoutH: longest,
     firstWindow: findWindow(ds, site, s0, mission.needComms),
     verdict: verdictFor(coveragePct, longest),
+    sunDiscPct: (100 * disc) / len,
+    sunPartialPct: (100 * partial) / len,
+    earthLinkPct: (100 * linked) / len,
+    earthMarginalPct: (100 * low) / len,
   }
 }
 
@@ -67,10 +80,11 @@ export function score(ds: Dataset, site: Site, startIdx: number, durationH: numb
   const n = Math.max(1, Math.round(durationH / step))
   const s0 = clampIdx(ds, startIdx)
   const s1 = Math.min(ds.meta.count, s0 + n)
-  const { sunVis, earthVis } = site.series
+  const { sunVis } = site.series
+  const link = linkFlags(site)
   let req = 0, both = 0, gap = 0, longest = 0
   for (let i = s0; i < s1; i++) {
-    const b = sunVis[i] & earthVis[i]
+    const b = sunVis[i] & link[i]
     const r = needComms ? b : sunVis[i]
     both += b
     req += r
@@ -96,9 +110,18 @@ export function fmtDay(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
+/**
+ * Gnomon's screening thresholds. They are the team's own planning defaults, not NASA criteria:
+ * GO when the need is met at least 75% of the mission with no gap over 24 h (about one Earth day,
+ * which small landers have survived on battery), RISKY at 45% / 96 h (roughly half the mission
+ * covered, gaps up to four days), otherwise NO-GO. For a real decision use the power check
+ * (simulateBattery), which works from the lander's own battery, load and array.
+ */
+export const SCREEN = { goCoverage: 75, goGapH: 24, riskyCoverage: 45, riskyGapH: 96 } as const
+
 export function verdictFor(coveragePct: number, longestBlackoutH: number): Verdict {
-  if (coveragePct >= 75 && longestBlackoutH <= 24) return 'GO'
-  if (coveragePct >= 45 && longestBlackoutH <= 96) return 'RISKY'
+  if (coveragePct >= SCREEN.goCoverage && longestBlackoutH <= SCREEN.goGapH) return 'GO'
+  if (coveragePct >= SCREEN.riskyCoverage && longestBlackoutH <= SCREEN.riskyGapH) return 'RISKY'
   return 'NO-GO'
 }
 
@@ -147,8 +170,8 @@ export function runs(flags: number[], from = 0, to = flags.length): [number, num
 }
 
 export function bothFlags(site: Site): number[] {
-  const { sunVis, earthVis } = site.series
-  return sunVis.map((v, i) => v & earthVis[i])
+  const link = linkFlags(site)
+  return site.series.sunVis.map((v, i) => v & link[i])
 }
 
 const R = Math.PI / 180
@@ -175,20 +198,54 @@ export function fmtHours(h: number): string {
 /** Sun's apparent radius in degrees, used for the "first light" (upper edge) rule. */
 export const SUN_RADIUS_DEG = 0.27
 
+/** Skyline elevation at an azimuth, linearly interpolated between the 1° bins. */
+export function skyAt(skyline: number[], az: number): number {
+  const a = ((az % 360) + 360) % 360
+  const i = Math.floor(a)
+  const f = a - i
+  return skyline[i % 360] * (1 - f) + skyline[(i + 1) % 360] * f
+}
+
+/** Fraction of a disc of radius r (deg) whose centre is h degrees above a straight skyline. */
+export function discFraction(h: number, r: number): number {
+  const x = Math.max(-1, Math.min(1, h / r))
+  return 1 - (Math.acos(x) - x * Math.sqrt(1 - x * x)) / Math.PI
+}
+
 /**
- * Recompute Sun visibility from the stored elevations and skyline, so the app can
- * switch between "centre above skyline" and "first light" (upper edge above skyline)
- * without rerunning the pipeline. Earth visibility is left as the pipeline wrote it.
+ * Default: Earth counts as soon as its centre clears the ridge (line of sight), as before. Contact
+ * under MARGINAL_DEG is still flagged as marginal; raise earthMaskDeg to make the verdict require it.
  */
-export function withSunMode(ds: Dataset, mode: SunMode): Dataset {
-  if (mode === 'centre') return ds // the pipeline already computed the centre rule
-  const offset = SUN_RADIUS_DEG
+export const DEFAULT_RULES: Rules = { sunMode: 'centre', earthMaskDeg: 0 }
+/** Earth lower than this over the ridge is flagged as marginal when no stricter mask is set. */
+export const MARGINAL_DEG = 2
+export const marginalDeg = (rules: Rules) => (rules.earthMaskDeg > 0 ? rules.earthMaskDeg : MARGINAL_DEG)
+
+/**
+ * Apply the visibility rules to the raw pipeline data:
+ * - sunFrac: share of the Sun's disc above the skyline (partial Sun), for every sample;
+ * - sunVis: the chosen Sun rule (centre or top edge);
+ * - earthLink: Earth in view and at least `earthMaskDeg` above the skyline (usable link);
+ * - earthLow: Earth in view but under marginalDeg: the antenna looks along the ground (terrain
+ *   blockage, multipath), so that contact is flagged as marginal.
+ * earthVis (line of sight) is left as the pipeline wrote it.
+ */
+export function withRules(ds: Dataset, rules: Rules): Dataset {
+  const r = SUN_RADIUS_DEG
   return {
     ...ds,
     sites: ds.sites.map((site) => {
-      const { sunAz, sunEl } = site.series
-      const sunVis = sunEl.map((el, i) => (el + offset > site.skyline[((Math.round(sunAz[i]) % 360) + 360) % 360] ? 1 : 0))
-      return { ...site, series: { ...site.series, sunVis } }
+      const { sunAz, sunEl, earthAz, earthEl, earthVis } = site.series
+      const sky = site.skyline
+      const sunFrac = sunEl.map((el, i) => discFraction(el - skyAt(sky, sunAz[i]), r))
+      const sunVis = rules.sunMode === 'centre'
+        ? site.series.sunVis // the pipeline already computed the centre rule
+        : sunEl.map((el, i) => (el + r > sky[((Math.round(sunAz[i]) % 360) + 360) % 360] ? 1 : 0))
+      const clear = earthEl.map((el, i) => el - skyAt(sky, earthAz[i]))
+      const earthLink = rules.earthMaskDeg > 0 ? earthVis.map((v, i) => (v && clear[i] >= rules.earthMaskDeg ? 1 : 0)) : earthVis
+      const low = marginalDeg(rules)
+      const earthLow = earthVis.map((v, i) => (v && clear[i] < low ? 1 : 0))
+      return { ...site, series: { ...site.series, sunVis, sunFrac, earthLink, earthLow } }
     }),
   }
 }
@@ -197,4 +254,62 @@ export function withSunMode(ds: Dataset, mode: SunMode): Dataset {
 export function nowIdx(ds: Dataset): number | null {
   const i = dateToIdx(ds, new Date())
   return i >= 0 && i < ds.meta.count ? i : null
+}
+
+/* ---------- power check (C1): battery state of charge over the mission ---------- */
+
+export interface Lander {
+  /** Usable battery energy, Wh. */
+  batteryWh: number
+  /** Average power draw (avionics, heaters, radio), W. */
+  loadW: number
+  /** Array output with the whole Sun disc in view, W (array assumed to face the Sun). */
+  arrayW: number
+  /** Lowest allowed charge, % of the battery. */
+  reservePct: number
+}
+
+/** Illustrative small lander, not a real vehicle. Users should enter their own numbers. */
+export const EXAMPLE_LANDER: Lander = { batteryWh: 2500, loadW: 120, arrayW: 400, reservePct: 20 }
+
+export interface PowerResult {
+  /** Charge (% of battery) at each sample of the mission, starting full. */
+  soc: number[]
+  minPct: number
+  minIdx: number
+  /** First sample where the charge fell below the reserve, or null. */
+  belowReserveIdx: number | null
+  /** True if the battery ran flat at some point. */
+  flat: boolean
+  verdict: Verdict
+  /** Average energy balance over the mission, W (positive = charging). */
+  netW: number
+}
+
+/**
+ * Step the battery through the mission: each sample adds array output × visible Sun-disc fraction
+ * and subtracts the load, over one time step. Starts full; can't charge above full.
+ * GO = never below the reserve; RISKY = dips below the reserve but never flat; NO-GO = runs flat.
+ */
+export function simulateBattery(ds: Dataset, site: Site, startIdx: number, durationH: number, lander: Lander): PowerResult {
+  const step = ds.meta.stepHours
+  const n = Math.max(1, Math.round(durationH / step))
+  const s0 = clampIdx(ds, startIdx)
+  const s1 = Math.min(ds.meta.count, s0 + n)
+  const frac = site.series.sunFrac ?? site.series.sunVis
+  const cap = Math.max(1, lander.batteryWh)
+  let e = cap, min = cap, minIdx = s0, below: number | null = null, flat = false, net = 0
+  const soc: number[] = []
+  for (let i = s0; i < s1; i++) {
+    const w = lander.arrayW * frac[i] - lander.loadW
+    net += w
+    e = Math.min(cap, e + w * step)
+    if (e <= 0) { e = 0; flat = true }
+    if (e < min) { min = e; minIdx = i }
+    if (below === null && (100 * e) / cap < lander.reservePct) below = i
+    soc.push((100 * e) / cap)
+  }
+  const minPct = (100 * min) / cap
+  const verdict: Verdict = flat ? 'NO-GO' : minPct < lander.reservePct ? 'RISKY' : 'GO'
+  return { soc, minPct, minIdx, belowReserveIdx: below, flat, verdict, netW: net / Math.max(1, s1 - s0) }
 }

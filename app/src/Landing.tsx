@@ -496,21 +496,21 @@ function Validation() {
         <div className="relative mx-auto max-w-[1180px]">
           <Reveal>
             <p className="small text-[#fffdf6]/60">Validated against NASA</p>
-            <BlurText className="h2 mt-3 max-w-[22ch]" text="We checked our math against JPL’s own." />
+            <BlurText className="h2 mt-3 max-w-[22ch]" text="We checked our math against JPL’s and NASA’s own." />
           </Reveal>
           <div className="mt-16 grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-end">
             <Reveal>
               <p className="tabular text-[clamp(72px,12vw,168px)] font-normal leading-[0.9] tracking-[-0.06em]">0.0005°</p>
               <p className="mt-5 max-w-[42ch] text-[16px] font-medium leading-[1.55] tracking-[-0.012em] text-[#fffdf6]/70">
-                The largest difference between our Sun and Earth positions and an independent calculation from JPL’s DE421 ephemeris. That is a thousand times smaller than the Sun’s disc.
+                The largest difference between our Sun and Earth positions (JPL Horizons, DE441) and our own calculation from JPL’s separate DE421 ephemeris. That is a thousand times smaller than the Sun’s disc.
               </p>
             </Reveal>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
+                ['2.1 pts', 'average gap between our sunlight and NASA’s polar illumination maps (PGDA), 7 polar sites'],
+                ['7 of 7', 'polar sites where our sunlight falls inside NASA’s own range within 500 m'],
                 ['170,874', 'Sun and Earth positions checked, at all 9 sites'],
-                ['0', 'sunlit or in-view calls changed by the check'],
                 ['2 h', 'time step, every day from Nov 2026 to Dec 2028'],
-                ['2 methods', 'used to build the terrain horizon, compared site by site'],
               ].map(([v, l], i) => (
                 <Reveal key={l} delay={i * 0.08}>
                   <div className="h-full rounded-[22px] bg-white/[0.06] p-5 shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08)]">

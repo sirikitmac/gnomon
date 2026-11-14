@@ -21,7 +21,9 @@ import Toast from './components/Toast'
 import ViewTabs from './components/ViewTabs'
 import { TARGET_VIEW, viewFromHash, type View } from './lib/views'
 import { compareSites, loadCompareIds, saveCompareIds } from './lib/compare'
-import { analyze, bestLanding, clampIdx, fmtDate, fmtHours, idxToDate, nowIdx, withSunMode } from './lib/engine'
+import { analyze, bestLanding, clampIdx, DEFAULT_RULES, EXAMPLE_LANDER, fmtDate, fmtHours, idxToDate, nowIdx, withRules, type Lander } from './lib/engine'
+import PowerCheck from './components/PowerCheck'
+import LandingArea from './components/LandingArea'
 import { copyText } from './lib/dom'
 import { checkPreset, PRESETS, resolvePreset, type Preset } from './lib/presets'
 import { buildCsv, buildReportHtml, downloadText, openReport } from './lib/report'
@@ -126,8 +128,10 @@ const idxDay = (ds: Dataset, i: number) => idxToDate(ds, i).toISOString().slice(
 
 export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => void }) {
   const [rawDs, setDs] = useState<Dataset | null>(null)
-  const [sunMode, setSunMode] = useState<SunMode>('centre')
-  const ds = useMemo(() => (rawDs ? withSunMode(rawDs, sunMode) : null), [rawDs, sunMode])
+  const [sunMode, setSunMode] = useState<SunMode>(DEFAULT_RULES.sunMode)
+  const [earthMaskDeg, setEarthMaskDeg] = useState(DEFAULT_RULES.earthMaskDeg)
+  const ds = useMemo(() => (rawDs ? withRules(rawDs, { sunMode, earthMaskDeg }) : null), [rawDs, sunMode, earthMaskDeg])
+  const [lander, setLander] = useState<Lander>(EXAMPLE_LANDER)
   const [error, setError] = useState<string | null>(null)
   const [siteId, setSiteId] = useState('malapert')
   const [mission, setMission] = useState<Mission>({ startIdx: 0, durationH: 24 * 10, needComms: true, slipDays: 0 })
@@ -226,6 +230,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
         const id = fromUrl.siteId ?? 'malapert'
         setSiteId(id)
         if (fromUrl.sunMode) setSunMode(fromUrl.sunMode)
+        if (fromUrl.earthMaskDeg !== undefined) setEarthMaskDeg(fromUrl.earthMaskDeg)
         const base: Mission = { startIdx: 0, durationH: fromUrl.durationH ?? 24 * 10, needComms: fromUrl.needComms ?? true, slipDays: fromUrl.slipDays ?? 0 }
         let start = fromUrl.startIdx ?? nowIdx(d)
         if (start === null) start = bestLanding(d, d.sites.find((x) => x.id === id) ?? d.sites[0], base).idx
@@ -239,12 +244,13 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
   // Dev guard: the preset texts describe what the data shows; warn if the data ever disagrees.
   useEffect(() => {
     if (!import.meta.env.DEV || !rawDs) return
-    for (const p of PRESETS) for (const msg of checkPreset(withSunMode(rawDs, p.sunMode), p)) console.warn('[presets]', msg)
+    for (const p of PRESETS) for (const msg of checkPreset(withRules(rawDs, { sunMode: p.sunMode, earthMaskDeg: p.earthMaskDeg ?? DEFAULT_RULES.earthMaskDeg }), p)) console.warn('[presets]', msg)
   }, [rawDs])
 
   const applyPlan = (st: PlanState) => {
     setSiteId(st.siteId)
     setSunMode(st.sunMode)
+    setEarthMaskDeg(st.earthMaskDeg)
     setMission({ startIdx: st.startIdx, durationH: st.durationH, needComms: st.needComms, slipDays: st.slipDays })
     setCursor(st.startIdx)
   }
@@ -260,7 +266,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
   )
 
   // Keep the address bar in sync with the plan (replaceState, debounced: no history entries, no reloads).
-  const shareQuery = ds && site ? encodePlan(ds, { siteId: site.id, ...mission, sunMode }) : null
+  const shareQuery = ds && site ? encodePlan(ds, { siteId: site.id, ...mission, sunMode, earthMaskDeg }) : null
   useEffect(() => {
     if (!urlReady || !shareQuery) return
     const t = setTimeout(() => {
@@ -272,7 +278,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
 
   const reportInput = () => {
     if (!ds || !site || !a) return null
-    return { ds, site, mission, sunMode, a, slipped, rows: compareSites(ds, mission, compareIds), link: shareLink, generatedAt: new Date(), name: `rocky-${site.id}-${idxDay(ds, mission.startIdx)}` }
+    return { ds, site, mission, sunMode, earthMaskDeg, a, slipped, rows: compareSites(ds, mission, compareIds), link: shareLink, generatedAt: new Date(), name: `gnomon-${site.id}-${idxDay(ds, mission.startIdx)}` }
   }
 
   const isDark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
@@ -476,7 +482,12 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                     onNow={(i) => setLanding(i)}
                     sunMode={sunMode}
                     onSunMode={setSunMode}
+                    earthMaskDeg={earthMaskDeg}
+                    onEarthMask={setEarthMaskDeg}
                   />
+                </SidebarSection>
+                <SidebarSection title="Power check">
+                  <PowerCheck ds={ds} site={site} mission={mission} lander={lander} onChange={setLander} screen={a.verdict} />
                 </SidebarSection>
               </aside>
             </div>
@@ -507,7 +518,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                           <ScenarioBanner scenario={scenario} onClose={() => setScenario(null)} />
                         </div>
                       )}
-                      <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} flush />
+                      <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} earthMaskDeg={earthMaskDeg} flush />
                     </div>
                   )}
                   <button
@@ -588,6 +599,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                     className={`h-full w-[300px] overflow-y-auto border-l border-line bg-surface/92 shadow-pop backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-200 ease-out sm:w-[320px] ${rightOpen ? 'translate-x-0' : 'translate-x-full'}`}
                   >
                     <SiteBrief ds={ds} site={site} idx={cur} flush />
+                    <LandingArea ds={ds} site={site} mission={mission} rules={{ sunMode, earthMaskDeg }} />
                   </aside>
                 </div>
               </div>

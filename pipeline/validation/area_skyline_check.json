@@ -1,0 +1,50 @@
+[
+ {
+  "id": "haworth",
+  "points": 961,
+  "meanAbsDiff": 0.57,
+  "p90AbsDiff": 1.51,
+  "maxAbsDiff": 11.89,
+  "corr": 0.9969,
+  "centreOurs": 13.3,
+  "centrePipeline": 7.9,
+  "centreSitesJson": 7.9,
+  "maxSkyDeg": 16.5
+ },
+ {
+  "id": "malapert",
+  "points": 961,
+  "meanAbsDiff": 1.88,
+  "p90AbsDiff": 4.7,
+  "maxAbsDiff": 20.01,
+  "corr": 0.9597,
+  "centreOurs": 69.0,
+  "centrePipeline": 66.1,
+  "centreSitesJson": 66.1,
+  "maxSkyDeg": 29.3
+ },
+ {
+  "id": "mons-mouton",
+  "points": 961,
+  "meanAbsDiff": 0.6,
+  "p90AbsDiff": 1.53,
+  "maxAbsDiff": 10.63,
+  "corr": 0.9931,
+  "centreOurs": 45.3,
+  "centrePipeline": 45.4,
+  "centreSitesJson": 45.4,
+  "maxSkyDeg": 16.9
+ },
+ {
+  "id": "shackleton-ce7",
+  "points": 961,
+  "meanAbsDiff": 2.09,
+  "p90AbsDiff": 5.44,
+  "maxAbsDiff": 17.42,
+  "corr": 0.9576,
+  "centreOurs": 55.4,
+  "centrePipeline": 55.4,
+  "centreSitesJson": 55.4,
+  "maxSkyDeg": 23.2
+ }
+]
