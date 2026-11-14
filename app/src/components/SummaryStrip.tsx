@@ -30,11 +30,11 @@ function Stat({ label, value, bar, color, delta }: { label: string; value: strin
   )
 }
 
-export default function SummaryStrip({ ds, a, slipped, slipDays, needComms }: { ds: Dataset; a: Analysis; slipped: Analysis | null; slipDays: number; needComms: boolean }) {
+export default function SummaryStrip({ ds, a, slipped, slipDays, needComms, flush = false }: { ds: Dataset; a: Analysis; slipped: Analysis | null; slipDays: number; needComms: boolean; flush?: boolean }) {
   const w = a.firstWindow
   const s = slipped && slipDays > 0 ? slipped : null
   return (
-    <section className="grid overflow-hidden rounded-[14px] bg-surface shadow-card lg:grid-cols-[minmax(280px,1.3fr)_repeat(4,minmax(0,1fr))]">
+    <section className={`grid overflow-hidden lg:grid-cols-[minmax(260px,1.3fr)_repeat(4,minmax(0,1fr))] ${flush ? 'bg-transparent' : 'rounded-[14px] bg-surface shadow-card'}`}>
       <div className="flex items-start gap-4 border-b border-line p-4 lg:border-b-0 lg:border-r">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div

@@ -1,5 +1,5 @@
 import { MotionConfig } from 'framer-motion'
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ElevationChart from './components/ElevationChart'
 import Menu from './components/Menu'
 import MissionPanel from './components/MissionPanel'
@@ -40,7 +40,7 @@ function readMoonMode(): MoonMode {
 /** "Globe | Site 3D" switch for the Moon panel, styled like the panel's other dark controls. */
 function MoonModeSwitch({ value, onChange }: { value: MoonMode; onChange: (m: MoonMode) => void }) {
   return (
-    <div role="radiogroup" aria-label="Moon view" className="absolute left-3 top-3 z-20 flex rounded-md bg-[#0f1626]/80 p-0.5 ring-1 ring-white/15 backdrop-blur">
+    <div role="radiogroup" aria-label="Moon view" className="pointer-events-auto absolute left-8 top-3 z-20 flex rounded-md bg-[#0f1626]/80 p-0.5 ring-1 ring-white/15 backdrop-blur">
       {([['globe', 'Globe', 'The whole Moon with every site'], ['site3d', 'Site 3D', 'Real terrain around the selected site, lit at the mission time']] as const).map(([m, label, title]) => (
         <button
           key={m}
@@ -58,24 +58,64 @@ function MoonModeSwitch({ value, onChange }: { value: MoonMode; onChange: (m: Mo
   )
 }
 
-function Panel({ id, title, hint, children, className = '' }: { id?: string; title?: string; hint?: string; children: React.ReactNode; className?: string }) {
+function SidebarSection({ title, hint, defaultOpen = true, children }: { title: string; hint?: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <section id={id} className={`scroll-mt-20 rounded-[14px] bg-surface p-4 shadow-card ${className}`}>
-      {title && (
-        <header className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+    <section className="border-b border-line last:border-b-0">
+      <header className="flex items-center justify-between gap-2 px-4 py-3">
+        <div className="min-w-0">
           <h2 className="font-display text-[15px] font-semibold">{title}</h2>
-          {hint && <span className="text-xs text-ink-3">{hint}</span>}
+          {hint && <p className="text-xs text-ink-3">{hint}</p>}
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? '' : '-rotate-90'}`} aria-hidden>
+            <path d="M4 6l4 4 4-4" />
+          </svg>
+        </button>
+      </header>
+      {open && <div className="px-4 pb-4">{children}</div>}
+    </section>
+  )
+}
+
+function Panel({ id, title, hint, children, className = '' }: { id?: string; title?: string; hint?: string; children: React.ReactNode; className?: string }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <section id={id} className={`scroll-mt-20 border-b border-line bg-surface/92 backdrop-blur-2xl last:border-b-0 ${className}`}>
+      {title && (
+        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-3.5">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 className="font-display text-[15px] font-semibold">{title}</h2>
+            {hint && <span className="text-xs text-ink-3">{hint}</span>}
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? '' : '-rotate-90'}`} aria-hidden>
+              <path d="M4 6l4 4 4-4" />
+            </svg>
+          </button>
         </header>
       )}
-      {children}
+      {open && <div className={title ? 'px-5 pb-5' : 'p-5'}>{children}</div>}
     </section>
   )
 }
 
 function PageHead({ title, text }: { title: string; text: string }) {
   return (
-    <header className="px-1 pt-1">
-      <h1 className="font-display text-[22px] font-semibold tracking-tight">{title}</h1>
+    <header className="border-b border-line bg-surface/92 px-5 py-4 backdrop-blur-2xl">
+      <h1 className="font-display text-[20px] font-semibold tracking-tight">{title}</h1>
       <p className="mt-1 max-w-[70ch] text-sm text-ink-2">{text}</p>
     </header>
   )
@@ -103,22 +143,73 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
     setMoonModeState(m)
     try { sessionStorage.setItem(MOON_MODE_KEY, m) } catch { /* storage blocked: the choice lasts until reload */ }
   }
+
+  // Google-Maps-style collapsible edge panels
+  const [leftOpen, setLeftOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1024)
+  const [rightOpen, setRightOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1280)
+  const [topOpen, setTopOpen] = useState(true)
+  const [bottomOpen, setBottomOpen] = useState(true)
+  const [overlayOpen, setOverlayOpen] = useState(true)
+
+  const stageRef = useRef<HTMLDivElement>(null)
+  const middleRef = useRef<HTMLDivElement>(null)
+  const [mapInsets, setMapInsets] = useState({ top: 0, right: 0, bottom: 0, left: 0 })
+
   const [view, setViewState] = useState<View>(() => viewFromHash(location.hash))
   // Pages live in the URL hash so Back/Forward work and a shared link can open a page.
   const setView = useCallback((v: View) => {
     setViewState(v)
+    setOverlayOpen(true)
     if (viewFromHash(location.hash) !== v) location.hash = v === 'mission' ? '' : v
     window.scrollTo({ top: 0 })
   }, [])
   useEffect(() => {
-    const onHash = () => setViewState(viewFromHash(location.hash))
+    const onHash = () => {
+      setViewState(viewFromHash(location.hash))
+      setOverlayOpen(true)
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
   const navigateToTarget = useCallback((target: string) => {
     const v = TARGET_VIEW[target]
+    setLeftOpen(true)
+    setRightOpen(true)
+    setTopOpen(true)
+    setBottomOpen(true)
+    setOverlayOpen(true)
     if (v) setViewState((cur) => { if (cur !== v) { history.replaceState(history.state, '', `${location.pathname}${location.search}${v === 'mission' ? '' : '#' + v}`) } return v })
   }, [])
+
+  const hasData = rawDs !== null
+
+  // Keep MoonScene / SiteScene internal HUD controls aligned with the unobstructed map window.
+  useEffect(() => {
+    const stage = stageRef.current
+    const mid = middleRef.current
+    if (!stage || !mid) return
+    const update = () => {
+      const sr = stage.getBoundingClientRect()
+      const mr = mid.getBoundingClientRect()
+      if (sr.width === 0 || sr.height === 0) return
+      setMapInsets({
+        top: Math.max(0, Math.round(mr.top - sr.top)),
+        left: Math.max(0, Math.round(mr.left - sr.left + 16)),
+        right: Math.max(0, Math.round(sr.right - mr.right + 16)),
+        bottom: Math.max(0, Math.round(sr.bottom - mr.bottom)),
+      })
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(stage)
+    ro.observe(mid)
+    window.addEventListener('resize', update)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [leftOpen, rightOpen, topOpen, bottomOpen, view, scenario, hasData])
+
   const [theme, setTheme] = useTheme()
   const notify = (text: string) => setToast((t) => ({ id: (t?.id ?? 0) + 1, text }))
   const clearToast = useCallback(() => setToast(null), [])
@@ -186,8 +277,8 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
   const isDark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
 
   const appBar = (
-    <header className="sticky top-0 z-30 border-b border-line bg-surface/70 backdrop-blur-2xl backdrop-saturate-150">
-      <div className="mx-auto flex h-14 max-w-[1500px] items-center gap-3 px-4 lg:px-6">
+    <header className="z-40 shrink-0 border-b border-line bg-surface/85 backdrop-blur-2xl backdrop-saturate-150">
+      <div className="flex h-14 w-full items-center gap-3 px-3 lg:px-5">
         <button onClick={() => setMenuOpen(true)} aria-label="Open menu" className="grid h-9 w-9 place-items-center rounded-lg text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.96]">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 5h12M3 9h12M3 13h12" /></svg>
         </button>
@@ -209,7 +300,18 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
         <div className="ml-auto flex items-center gap-1 sm:gap-2 lg:ml-0">
           <button
             id="learn-button"
-            onClick={() => setLearnOn((v) => !v)}
+            onClick={() => {
+              setLearnOn((v) => {
+                if (!v) {
+                  setLeftOpen(true)
+                  setRightOpen(true)
+                  setTopOpen(true)
+                  setBottomOpen(true)
+                  setOverlayOpen(true)
+                }
+                return !v
+              })
+            }}
             aria-pressed={learnOn}
             disabled={!ds}
             title="A guided tour of how lunar landing sites work"
@@ -280,7 +382,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                       title={p.title}
                       detail={st ? p.blurb : 'Date not in the loaded data'}
                       disabled={!st}
-                      onSelect={() => { if (!st) return; applyPlan(st); setScenario(p); close() }}
+                      onSelect={() => { if (!st) return; applyPlan(st); setScenario(p); setTopOpen(true); close() }}
                     />
                   )
                 })}
@@ -315,7 +417,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
   if (error) {
     body = <p className="p-8 text-nogo-ink">Couldn't load app/public/data/sites.json ({error}). Run <code>python pipeline/generate_mock.py</code> and reload.</p>
   } else if (!ds || !site || !a) {
-    body = <p className="grid h-[60vh] place-items-center text-ink-3">Loading mission data…</p>
+    body = <p className="grid flex-1 place-items-center text-ink-3">Loading mission data…</p>
   } else {
     const setLanding = (idx: number) => {
       const i = clampIdx(ds, idx)
@@ -323,128 +425,260 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
       setCursor(i)
     }
     const cur = Math.max(a.startIdx, Math.min(a.endIdx - 1, cursor))
+    const stageVars = {
+      '--map-top': `${mapInsets.top}px`,
+      '--map-right': `${mapInsets.right}px`,
+      '--map-bottom': `${mapInsets.bottom}px`,
+      '--map-left': `${mapInsets.left}px`,
+    } as React.CSSProperties
+
     body = (
-      <div className="mx-auto grid max-w-[1500px] gap-5 p-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:p-6">
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-[4.5rem] lg:self-start">
-          <Panel title="Landing site">
-            <SitePicker sites={ds.sites} value={site.id} onChange={setSiteId} />
-          </Panel>
-          <Panel title="Mission">
-            <MissionPanel
-              ds={ds}
-              mission={mission}
-              onChange={(m) => { setMission(m); if (m.startIdx !== mission.startIdx) setCursor(m.startIdx) }}
-              onBest={() => setLanding(bestLanding(ds, site, mission).idx)}
-              onPlan={() => { setPlanOn(true); setView('compare') }}
-              nowIndex={nowIdx(ds)}
-              onNow={(i) => setLanding(i)}
-              sunMode={sunMode}
-              onSunMode={setSunMode}
-            />
-          </Panel>
-        </aside>
+      <div ref={stageRef} className="relative flex min-h-0 flex-1 overflow-hidden bg-[#05070c]" style={stageVars}>
+        {/* Fullscreen 3D Moon / Site 3D viewport (Google Maps style background layer) */}
+        <section id="moon-view" className="absolute inset-0 z-0 overflow-hidden bg-[#05070c]">
+          <Suspense fallback={<div className="grid h-full place-items-center text-sm text-[#a2adc2]">{moonMode === 'globe' ? 'Loading Moon…' : 'Loading terrain…'}</div>}>
+            {moonMode === 'globe'
+              ? <MoonScene site={site} sites={ds.sites} idx={cur} time={idxToDate(ds, cur)} onSelect={setSiteId} />
+              : <SiteScene
+                  site={site}
+                  idx={cur}
+                  range={[a.startIdx, a.endIdx]}
+                  stepsPerDay={24 / ds.meta.stepHours}
+                  timeLabel={`${fmtDate(idxToDate(ds, cur))} · T+${fmtHours((cur - a.startIdx) * ds.meta.stepHours)}`}
+                  onCursor={setCursor}
+                />}
+          </Suspense>
+        </section>
 
-        <main className="flex min-w-0 flex-col gap-5">
-          <ScenarioBanner scenario={scenario} onClose={() => setScenario(null)} />
+        {/* Floating Full-Edged UI Layer over the Fullscreen Moon View */}
+        <div className="pointer-events-none relative z-10 flex h-full w-full overflow-hidden">
+          {/* Left Full-Edged Collapsible Sidebar: Landing site & Mission */}
+          <div className={`pointer-events-auto relative z-30 flex h-full shrink-0 transition-[width] duration-200 ease-out ${leftOpen ? 'w-[300px] sm:w-[320px]' : 'w-0'}`}>
+            <div className="h-full w-full overflow-hidden">
+              <aside
+                aria-label="Landing site and mission controls"
+                className={`flex h-full w-[300px] flex-col overflow-y-auto border-r border-line bg-surface/92 shadow-pop backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-200 ease-out sm:w-[320px] ${leftOpen ? 'translate-x-0' : '-translate-x-full'}`}
+              >
+                <SidebarSection title="Landing site">
+                  <SitePicker sites={ds.sites} value={site.id} onChange={setSiteId} />
+                </SidebarSection>
+                <SidebarSection title="Mission">
+                  <MissionPanel
+                    ds={ds}
+                    mission={mission}
+                    onChange={(m) => { setMission(m); if (m.startIdx !== mission.startIdx) setCursor(m.startIdx) }}
+                    onBest={() => setLanding(bestLanding(ds, site, mission).idx)}
+                    onPlan={() => { setPlanOn(true); setView('compare') }}
+                    nowIndex={nowIdx(ds)}
+                    onNow={(i) => setLanding(i)}
+                    sunMode={sunMode}
+                    onSunMode={setSunMode}
+                  />
+                </SidebarSection>
+              </aside>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLeftOpen((v) => !v)}
+              aria-expanded={leftOpen}
+              aria-label={leftOpen ? 'Collapse mission sidebar' : 'Expand mission sidebar'}
+              title={leftOpen ? 'Collapse mission sidebar' : 'Expand mission sidebar'}
+              className="absolute -right-6 top-1/2 z-30 flex h-14 w-6 -translate-y-1/2 items-center justify-center rounded-r-lg border border-l-0 border-line bg-surface/95 text-ink-2 shadow-pop backdrop-blur-xl transition-colors hover:bg-surface-2 hover:text-ink"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${leftOpen ? '' : 'rotate-180'}`} aria-hidden>
+                <path d="M10 4L6 8l4 4" />
+              </svg>
+            </button>
+          </div>
 
-          {view === 'mission' && (
+          {view === 'mission' ? (
             <>
-              <div id="verdict" className="scroll-mt-20">
-                <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} />
-              </div>
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-                <section id="moon-view" className="relative h-[420px] overflow-hidden rounded-[14px] bg-[#05070c] shadow-card lg:h-[520px]">
-                  <Suspense fallback={<div className="grid h-full place-items-center text-sm text-ink-3">{moonMode === 'globe' ? 'Loading Moon…' : 'Loading terrain…'}</div>}>
-                    {moonMode === 'globe'
-                      ? <MoonScene site={site} sites={ds.sites} idx={cur} time={idxToDate(ds, cur)} onSelect={setSiteId} />
-                      : <SiteScene
-                          site={site}
-                          idx={cur}
-                          range={[a.startIdx, a.endIdx]}
-                          stepsPerDay={24 / ds.meta.stepHours}
-                          timeLabel={`${fmtDate(idxToDate(ds, cur))} · T+${fmtHours((cur - a.startIdx) * ds.meta.stepHours)}`}
-                          onCursor={setCursor}
-                        />}
-                  </Suspense>
+              {/* Center Column: Top Verdict Bar, Unobstructed Middle Map Area, Bottom Timeline Bar */}
+              <div className="pointer-events-none relative flex h-full min-w-0 flex-1 flex-col justify-between overflow-hidden">
+                {/* Top Full-Edged Collapsible Verdict & Scenario Bar */}
+                <div className="pointer-events-auto relative z-20 shrink-0">
+                  {topOpen && (
+                    <div id="verdict" className="border-b border-line bg-surface/92 shadow-pop backdrop-blur-2xl backdrop-saturate-150">
+                      {scenario && (
+                        <div className="border-b border-line px-4 py-2">
+                          <ScenarioBanner scenario={scenario} onClose={() => setScenario(null)} />
+                        </div>
+                      )}
+                      <SummaryStrip ds={ds} a={a} slipped={slipped} slipDays={mission.slipDays} needComms={mission.needComms} flush />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setTopOpen((v) => !v)}
+                    aria-expanded={topOpen}
+                    aria-label={topOpen ? 'Collapse verdict bar' : 'Expand verdict bar'}
+                    title={topOpen ? 'Collapse verdict bar' : 'Expand verdict bar'}
+                    className="absolute -bottom-6 left-1/2 z-30 flex h-6 -translate-x-1/2 items-center gap-1.5 rounded-b-lg border border-t-0 border-line bg-surface/95 px-3 text-[11px] font-medium text-ink-2 shadow-pop backdrop-blur-xl transition-colors hover:bg-surface-2 hover:text-ink"
+                  >
+                    <span>Verdict: {a.verdict}</span>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${topOpen ? '' : 'rotate-180'}`} aria-hidden>
+                      <path d="M4 10l4-4 4 4" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Middle Unobstructed Map Viewport */}
+                <div ref={middleRef} className="pointer-events-none relative min-h-0 flex-1">
                   <MoonModeSwitch value={moonMode} onChange={setMoonMode} />
                   {moonMode === 'globe' && (
-                    <div className="pointer-events-none absolute bottom-3 left-4 flex gap-4 text-xs text-[#a2adc2]">
+                    <div className="pointer-events-none absolute bottom-3 left-8 flex flex-wrap gap-4 text-xs text-[#a2adc2]">
                       <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
                       <span title="Earth and Sun are shown at their true sizes and directions from Horizons. Earth is at its real distance; the Sun is drawn closer but at its true apparent size. Earth's turn and cloud cover are illustrative.">Earth and Sun to scale</span>
                     </div>
                   )}
-                </section>
-                <SiteBrief ds={ds} site={site} idx={cur} />
+                </div>
+
+                {/* Bottom Full-Edged Collapsible Timeline Bar */}
+                <div className="pointer-events-auto relative z-20 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setBottomOpen((v) => !v)}
+                    aria-expanded={bottomOpen}
+                    aria-label={bottomOpen ? 'Collapse timeline' : 'Expand timeline'}
+                    title={bottomOpen ? 'Collapse timeline' : 'Expand timeline'}
+                    className="absolute -top-6 left-1/2 z-30 flex h-6 -translate-x-1/2 items-center gap-1.5 rounded-t-lg border border-b-0 border-line bg-surface/95 px-3 text-[11px] font-medium text-ink-2 shadow-pop backdrop-blur-xl transition-colors hover:bg-surface-2 hover:text-ink"
+                  >
+                    <span>Timeline · T+{fmtHours((cur - a.startIdx) * ds.meta.stepHours)}</span>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${bottomOpen ? '' : 'rotate-180'}`} aria-hidden>
+                      <path d="M4 6l4 4 4-4" />
+                    </svg>
+                  </button>
+                  {bottomOpen && (
+                    <section id="timeline" className="border-t border-line bg-surface/92 px-4 py-3 shadow-pop backdrop-blur-2xl backdrop-saturate-150">
+                      <header className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                        <h2 className="font-display text-[15px] font-semibold">Timeline</h2>
+                        <span className="text-xs text-ink-3">Drag to move the landing. Solid box: mission. Dashed box: delayed landing.</span>
+                      </header>
+                      <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />
+                      <label className="mt-3 flex items-center gap-3 text-sm text-ink-2">
+                        <span className="shrink-0">Mission time</span>
+                        <input type="range" className="w-full" min={a.startIdx} max={a.endIdx - 1} value={cur} onChange={(e) => setCursor(+e.target.value)} />
+                        <span className="w-24 shrink-0 text-right tabular">T+{fmtHours((cur - a.startIdx) * ds.meta.stepHours)}</span>
+                      </label>
+                    </section>
+                  )}
+                </div>
               </div>
-              <Panel id="timeline" title="Timeline" hint="Drag to move the landing. Solid box: mission. Dashed box: delayed landing.">
-                <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />
-                <label className="mt-4 flex items-center gap-3 text-sm text-ink-2">
-                  <span className="shrink-0">Mission time</span>
-                  <input type="range" className="w-full" min={a.startIdx} max={a.endIdx - 1} value={cur} onChange={(e) => setCursor(+e.target.value)} />
-                  <span className="w-24 shrink-0 text-right tabular">T+{fmtHours((cur - a.startIdx) * ds.meta.stepHours)}</span>
-                </label>
-              </Panel>
-            </>
-          )}
 
-          {view === 'compare' && (
-            <>
-              <PageHead title="Compare sites" text="Your chosen sites with the same landing date and mission settings. Add or remove sites below; click a row to make it your site." />
-              <Panel id="all-sites" title="Sites">
-                <CompareSites sites={ds.sites} ids={compareIds} onChange={setCompareIds} />
-                <CompareTable ds={ds} mission={mission} ids={compareIds} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
-              </Panel>
-              <Panel id="planner" title="Plan it for me" hint="Best site and landing date for your mission settings">
-                <PlanPanel
-                  ds={ds}
-                  mission={mission}
-                  siteId={site.id}
-                  todayIdx={nowIdx(ds)}
-                  active={planOn}
-                  onActivate={() => setPlanOn(true)}
-                  onUse={(id, idx) => { setSiteId(id); setLanding(idx); setView('mission') }}
-                />
-              </Panel>
-            </>
-          )}
-
-          {view === 'calendar' && (
-            <>
-              <PageHead title={`Launch calendar: ${site.name}`} text="Each day is a mission that lands at 00:00 UTC with your current settings. Click a day to land then." />
-              <Panel id="launch-calendar">
-                <LaunchCalendar ds={ds} site={site} mission={mission} todayIdx={nowIdx(ds)} onPick={setLanding} />
-              </Panel>
-            </>
-          )}
-
-          {view === 'analysis' && (
-            <>
-              <PageHead title={`Analysis: ${site.name}`} text="Why the site is lit or dark: the skyline around it, and where the Sun and Earth are during the mission." />
-              <Panel id="sky-view" title="Sky view" hint="Standing at the site: the skyline, with the Sun and Earth at the mission time">
-                <SkyView ds={ds} site={site} a={a} cursor={cur} onCursor={setCursor} />
-              </Panel>
-              <div className="grid gap-5 xl:grid-cols-2">
-                <Panel id="horizon-view" title="Horizon view" hint="Terrain around the site, with the Sun and Earth paths">
-                  <Panorama site={site} a={a} cursor={cur} />
-                </Panel>
-                <Panel title="Elevation during the mission" hint="Above the shaded terrain means visible">
-                  <ElevationChart ds={ds} site={site} a={a} cursor={cur} />
-                </Panel>
+              {/* Right Full-Edged Collapsible Sidebar: Site Brief */}
+              <div className={`pointer-events-auto relative z-30 flex h-full shrink-0 transition-[width] duration-200 ease-out ${rightOpen ? 'w-[300px] sm:w-[320px]' : 'w-0'}`}>
+                <button
+                  type="button"
+                  onClick={() => setRightOpen((v) => !v)}
+                  aria-expanded={rightOpen}
+                  aria-label={rightOpen ? 'Collapse site brief sidebar' : 'Expand site brief sidebar'}
+                  title={rightOpen ? 'Collapse site brief sidebar' : 'Expand site brief sidebar'}
+                  className="absolute -left-6 top-1/2 z-30 flex h-14 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-line bg-surface/95 text-ink-2 shadow-pop backdrop-blur-xl transition-colors hover:bg-surface-2 hover:text-ink"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${rightOpen ? '' : 'rotate-180'}`} aria-hidden>
+                    <path d="M6 4l4 4-4 4" />
+                  </svg>
+                </button>
+                <div className="h-full w-full overflow-hidden">
+                  <aside
+                    aria-label="Selected site details"
+                    className={`h-full w-[300px] overflow-y-auto border-l border-line bg-surface/92 shadow-pop backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-200 ease-out sm:w-[320px] ${rightOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                  >
+                    <SiteBrief ds={ds} site={site} idx={cur} flush />
+                  </aside>
+                </div>
               </div>
             </>
+          ) : (
+            /* Compare, Calendar & Analysis: Full-edged collapsible drawer over the Moon View */
+            <div ref={middleRef} className="pointer-events-none relative flex h-full min-w-0 flex-1 justify-end overflow-hidden">
+              <MoonModeSwitch value={moonMode} onChange={setMoonMode} />
+              <div className={`pointer-events-auto relative z-30 flex h-full transition-[width] duration-200 ease-out ${overlayOpen ? 'w-full' : 'w-0'}`}>
+                <button
+                  type="button"
+                  onClick={() => setOverlayOpen((v) => !v)}
+                  aria-expanded={overlayOpen}
+                  aria-label={overlayOpen ? `Collapse ${view} panel` : `Expand ${view} panel`}
+                  title={overlayOpen ? `Collapse ${view} panel to see Moon` : `Expand ${view} panel`}
+                  className="absolute -left-6 top-1/2 z-30 flex h-14 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-line bg-surface/95 text-ink-2 shadow-pop backdrop-blur-xl transition-colors hover:bg-surface-2 hover:text-ink"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${overlayOpen ? '' : 'rotate-180'}`} aria-hidden>
+                    <path d="M6 4l4 4-4 4" />
+                  </svg>
+                </button>
+                <div className="h-full w-full overflow-hidden">
+                  <main className={`flex h-full w-full flex-col overflow-y-auto border-l border-line bg-surface/92 shadow-pop backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-200 ease-out ${overlayOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                    {scenario && (
+                      <div className="border-b border-line px-5 py-2.5">
+                        <ScenarioBanner scenario={scenario} onClose={() => setScenario(null)} />
+                      </div>
+                    )}
+
+                    {view === 'compare' && (
+                      <>
+                        <PageHead title="Compare sites" text="Your chosen sites with the same landing date and mission settings. Add or remove sites below; click a row to make it your site." />
+                        <Panel id="all-sites" title="Sites">
+                          <CompareSites sites={ds.sites} ids={compareIds} onChange={setCompareIds} />
+                          <CompareTable ds={ds} mission={mission} ids={compareIds} cursor={cur} selectedId={site.id} onSelect={setSiteId} />
+                        </Panel>
+                        <Panel id="planner" title="Plan it for me" hint="Best site and landing date for your mission settings">
+                          <PlanPanel
+                            ds={ds}
+                            mission={mission}
+                            siteId={site.id}
+                            todayIdx={nowIdx(ds)}
+                            active={planOn}
+                            onActivate={() => setPlanOn(true)}
+                            onUse={(id, idx) => { setSiteId(id); setLanding(idx); setView('mission') }}
+                          />
+                        </Panel>
+                      </>
+                    )}
+
+                    {view === 'calendar' && (
+                      <>
+                        <PageHead title={`Launch calendar: ${site.name}`} text="Each day is a mission that lands at 00:00 UTC with your current settings. Click a day to land then." />
+                        <Panel id="launch-calendar" title="Calendar">
+                          <LaunchCalendar ds={ds} site={site} mission={mission} todayIdx={nowIdx(ds)} onPick={setLanding} />
+                        </Panel>
+                      </>
+                    )}
+
+                    {view === 'analysis' && (
+                      <>
+                        <PageHead title={`Analysis: ${site.name}`} text="Why the site is lit or dark: the skyline around it, and where the Sun and Earth are during the mission." />
+                        <Panel id="sky-view" title="Sky view" hint="Standing at the site: the skyline, with the Sun and Earth at the mission time">
+                          <SkyView ds={ds} site={site} a={a} cursor={cur} onCursor={setCursor} />
+                        </Panel>
+                        <div className="grid divide-y divide-line xl:grid-cols-2 xl:divide-x xl:divide-y-0">
+                          <Panel id="horizon-view" title="Horizon view" hint="Terrain around the site, with the Sun and Earth paths">
+                            <Panorama site={site} a={a} cursor={cur} />
+                          </Panel>
+                          <Panel title="Elevation during the mission" hint="Above the shaded terrain means visible">
+                            <ElevationChart ds={ds} site={site} a={a} cursor={cur} />
+                          </Panel>
+                        </div>
+                      </>
+                    )}
+                  </main>
+                </div>
+              </div>
+            </div>
           )}
-        </main>
+        </div>
       </div>
     )
   }
 
   return (
     <MotionConfig reducedMotion="user">
-      {appBar}
-      {body}
-      <Toast message={toast} onDone={clearToast} />
-      <LearnTour open={learnOn && !!ds} onClose={closeLearn} onNavigate={navigateToTarget} />
-      <Menu open={menuOpen} onClose={() => setMenuOpen(false)} theme={theme} setTheme={setTheme} ds={ds} />
+      <div className="flex h-dvh w-screen flex-col overflow-hidden bg-bg">
+        {appBar}
+        {body}
+        <Toast message={toast} onDone={clearToast} />
+        <LearnTour open={learnOn && !!ds} onClose={closeLearn} onNavigate={navigateToTarget} />
+        <Menu open={menuOpen} onClose={() => setMenuOpen(false)} theme={theme} setTheme={setTheme} ds={ds} />
+      </div>
     </MotionConfig>
   )
 }

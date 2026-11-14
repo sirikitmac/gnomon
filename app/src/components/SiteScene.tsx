@@ -457,7 +457,14 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
         <div ref={setEl('earth')} className="absolute left-0 top-0 text-[11px] text-[#9cc2ff] [text-shadow:0_1px_3px_#000]" style={{ opacity: 0 }}>Earth</div>
       </div>
 
-      <div className="pointer-events-none absolute left-[150px] right-3 top-3 flex flex-wrap items-center justify-end gap-2">
+      <div
+        className="pointer-events-none absolute z-20 flex flex-wrap items-center justify-end gap-2 transition-[left,right,top] duration-200"
+        style={{
+          left: 'calc(var(--map-left, 0px) + 150px)',
+          right: 'calc(var(--map-right, 0px) + 12px)',
+          top: 'calc(var(--map-top, 0px) + 12px)',
+        }}
+      >
         <button type="button" aria-pressed={showExposure} onClick={() => setShowExposure((v) => !v)} className={btn(showExposure)}
           title="Heat map of how often each spot sees the Sun (or Earth), Nov 2026 – Dec 2028, from the 100 m exposure grid">
           Sun exposure
@@ -471,7 +478,14 @@ export default function SiteScene({ site, idx, range, stepsPerDay = 12, timeLabe
         </button>
       </div>
 
-      <div className="absolute inset-x-2 bottom-2 flex flex-col gap-1.5 rounded-[10px] bg-[#0b0f18]/80 p-2 text-[11px] text-[#a2adc2] ring-1 ring-white/10 backdrop-blur sm:inset-x-3 sm:bottom-3">
+      <div
+        className="absolute z-20 flex flex-col gap-1.5 rounded-[10px] bg-[#0b0f18]/80 p-2 text-[11px] text-[#a2adc2] ring-1 ring-white/10 backdrop-blur transition-[left,right,bottom] duration-200"
+        style={{
+          left: 'calc(var(--map-left, 0px) + 12px)',
+          right: 'calc(var(--map-right, 0px) + 12px)',
+          bottom: 'calc(var(--map-bottom, 0px) + 12px)',
+        }}
+      >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           {play.canPlay && (
             <>

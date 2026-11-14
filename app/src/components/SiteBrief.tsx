@@ -45,9 +45,9 @@ function NearbySun({ site }: { site: Site }) {
   )
 }
 
-export default function SiteBrief({ ds, site, idx }: { ds: Dataset; site: Site; idx: number }) {
+export default function SiteBrief({ ds, site, idx, flush = false }: { ds: Dataset; site: Site; idx: number; flush?: boolean }) {
   return (
-    <section className="flex flex-col rounded-[14px] bg-surface p-5 shadow-card">
+    <section className={`flex flex-col p-5 ${flush ? 'min-h-full bg-transparent' : 'rounded-[14px] bg-surface shadow-card'}`}>
       <div className="text-xs text-ink-3">{site.role} site</div>
       <h2 className="mt-1 font-display text-2xl font-semibold leading-tight">{site.name}</h2>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">{site.story}</p>

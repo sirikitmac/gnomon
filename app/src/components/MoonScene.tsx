@@ -451,7 +451,12 @@ export default function MoonScene(props: Props) {
         ))}
       </div>
       {picked && (
-        <div className="absolute left-3 top-14 z-30 w-[min(300px,calc(100%-24px))] rounded-[12px] bg-[#16161a]/85 p-3.5 text-[#f5f5f7] shadow-[0_0_0_0.5px_rgba(255,255,255,0.12),0_12px_32px_-8px_rgba(0,0,0,0.7)] backdrop-blur-xl" role="dialog" aria-label={picked.name}>
+        <div
+          className="absolute z-30 w-[min(300px,calc(100%-24px))] rounded-[12px] bg-[#16161a]/85 p-3.5 text-[#f5f5f7] shadow-[0_0_0_0.5px_rgba(255,255,255,0.12),0_12px_32px_-8px_rgba(0,0,0,0.7)] backdrop-blur-xl transition-[left,top] duration-200"
+          style={{ left: 'calc(var(--map-left, 0px) + 12px)', top: 'calc(var(--map-top, 0px) + 56px)' }}
+          role="dialog"
+          aria-label={picked.name}
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[15px] font-semibold leading-tight">{picked.name}</div>
@@ -474,7 +479,14 @@ export default function MoonScene(props: Props) {
           <p className="mt-2 text-[10px] text-[#8e8e93]">Source: IAU Gazetteer of Planetary Nomenclature (USGS)</p>
         </div>
       )}
-      <div className="pointer-events-none absolute left-[150px] right-3 top-3 flex flex-wrap items-center justify-end gap-2">
+      <div
+        className="pointer-events-none absolute z-20 flex flex-wrap items-center justify-end gap-2 transition-[left,right,top] duration-200"
+        style={{
+          left: 'calc(var(--map-left, 0px) + 150px)',
+          right: 'calc(var(--map-right, 0px) + 12px)',
+          top: 'calc(var(--map-top, 0px) + 12px)',
+        }}
+      >
         <span className="hidden rounded-md bg-[#0f1626]/70 px-2 py-1 text-[11px] text-[#a2adc2] backdrop-blur xl:inline">Drag to rotate, scroll to zoom</span>
         <button
           type="button"
