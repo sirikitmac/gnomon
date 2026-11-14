@@ -510,7 +510,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
             {moonMode === 'globe'
               ? <MoonScene site={site} sites={ds.sites} idx={cur} time={idxToDate(ds, cur)} onSelect={setSiteId} />
               : moonMode === 'orbit'
-              ? <OrbitScene ds={ds} site={site} cursor={cur} range={[a.startIdx, a.endIdx]} onCursor={setCursor} onPlayingChange={setOrbitPlaying} />
+              ? <OrbitScene ds={ds} site={site} cursor={cur} range={[a.startIdx, a.endIdx]} onCursor={setCursor} onPlayingChange={setOrbitPlaying} onSelect={setSiteId} />
               : <SiteScene
                   site={site}
                   idx={cur}
