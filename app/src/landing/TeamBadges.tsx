@@ -82,6 +82,14 @@ function Badge({ m, i }: { m: Member; i: number }) {
     const a = (Math.atan2(e.clientX - (p.left + p.width / 2), e.clientY - p.top) * 180) / Math.PI
     return Math.max(-55, Math.min(55, -a))
   }
+  // Keep a held badge above its neighbours, and let it settle before dropping back.
+  const lift = (e: React.PointerEvent, up: boolean) => {
+    const item = e.currentTarget.closest<HTMLElement>('[role="listitem"]')
+    if (!item) return
+    window.clearTimeout(Number(item.dataset.t))
+    if (up) item.style.zIndex = '20'
+    else item.dataset.t = String(window.setTimeout(() => { item.style.zIndex = '' }, 900))
+  }
   const nudge = (deg: number) => {
     if (reduce) return
     rot.set(deg)
@@ -107,14 +115,14 @@ function Badge({ m, i }: { m: Member; i: number }) {
         {/* card */}
         <motion.article
           style={{ ['--sx' as string]: shadowX }}
-          onPointerDown={(e) => { if (reduce) return; dragging.current = true; e.currentTarget.setPointerCapture(e.pointerId); rot.set(angleTo(e)) }}
+          onPointerDown={(e) => { if (reduce) return; dragging.current = true; lift(e, true); e.currentTarget.setPointerCapture(e.pointerId); rot.set(angleTo(e)) }}
           onPointerMove={(e) => {
             if (reduce) return
             if (dragging.current) rot.set(angleTo(e))
             else if (e.pointerType === 'mouse') nudge(Math.max(-14, Math.min(14, e.movementX * 1.4)))
           }}
-          onPointerUp={() => { dragging.current = false; rot.set(0) }}
-          onPointerCancel={() => { dragging.current = false; rot.set(0) }}
+          onPointerUp={(e) => { dragging.current = false; lift(e, false); rot.set(0) }}
+          onPointerCancel={(e) => { dragging.current = false; lift(e, false); rot.set(0) }}
           className="lnd-badge relative w-[176px] cursor-grab touch-pan-y select-none overflow-hidden rounded-[16px] p-3.5 active:cursor-grabbing"
           aria-label={`${m.name}, Team Lagrange Point`}
         >
@@ -154,7 +162,7 @@ export default function TeamBadges({ members }: { members: Member[] }) {
       aria-label="Team members"
     >
       {members.map((m, i) => (
-        <div role="listitem" key={m.name}><Badge m={m} i={i} /></div>
+        <div role="listitem" key={m.name} className="relative hover:z-10"><Badge m={m} i={i} /></div>
       ))}
     </div>
   )
