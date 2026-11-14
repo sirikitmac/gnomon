@@ -8,3 +8,4 @@ pipeline/raw/
 *.tif
 *.img
 app/public/data/sites.mock.json
+pnpm-lock.yaml
