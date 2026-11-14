@@ -9,7 +9,9 @@ const EASE = [0.23, 1, 0.32, 1] as const
  * The sites on the Compare page, as removable chips, plus an "Add site" menu for the rest.
  * At least one site always stays on the list.
  */
-export default function CompareSites({ sites, ids, onChange }: { sites: Site[]; ids: string[]; onChange: (ids: string[]) => void }) {
+export default function CompareSites({ sites, ids, onChange, chips = true }: { sites: Site[]; ids: string[]; onChange: (ids: string[]) => void
+  /** False: just the Add site menu (and reset); sites are removed from each row's menu instead. */
+  chips?: boolean }) {
   const [open, setOpen] = useState(false)
   const [alignRight, setAlignRight] = useState(false)
   const wrap = useRef<HTMLDivElement>(null)
@@ -42,8 +44,8 @@ export default function CompareSites({ sites, ids, onChange }: { sites: Site[]; 
   const remove = (id: string) => { if (ids.length > 1) onChange(ids.filter((x) => x !== id)) }
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-1.5" aria-label="Sites being compared">
-      {shown.map((s) => (
+    <div className={`flex flex-wrap items-center gap-1.5 ${chips ? 'mb-4' : ''}`} aria-label="Sites being compared">
+      {chips && shown.map((s) => (
         <span key={s.id} className="flex h-8 items-center gap-1 rounded-full bg-surface-2 pl-3 pr-1 text-[13px]">
           <span className="max-w-[16rem] truncate">{s.name}</span>
           <button
