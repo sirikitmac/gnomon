@@ -610,6 +610,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                     <div className="pointer-events-none absolute bottom-3 left-8 flex flex-wrap gap-4 text-xs text-[#b3ac9f]">
                       <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
                       <span title="Earth and Sun are shown at their true sizes and directions from Horizons. Earth is at its real distance; the Sun is drawn closer but at its true apparent size. Earth's turn and cloud cover are illustrative.">Earth and Sun to scale</span>
+                      <span className="max-xl:hidden">Drag to turn the Moon, scroll to zoom</span>
                     </div>
                   )}
                 </div>
