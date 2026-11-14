@@ -3,6 +3,9 @@ import Lenis from 'lenis'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import GnomonMark from './components/GnomonMark'
 import Five, { type FiveMode } from './landing/Five'
+import BlurText from './landing/BlurText'
+import TeamBadges, { type Member } from './landing/TeamBadges'
+import { useTheme } from './lib/theme'
 import '@fontsource-variable/manrope'
 import '@fontsource-variable/fraunces/opsz.css'
 import './landing/landing.css'
@@ -95,7 +98,15 @@ const FIVE_LINES = [
   'At the south pole the Sun never climbs more than a few degrees.',
 ]
 
-const TEAM = ['Sirikit', 'Sherie', 'Jiandale', 'Jodenn', 'Rene', 'Andi']
+// Jodenn and Sherie have no photo yet: their badges show an empty photo slot.
+const TEAM: Member[] = [
+  { name: 'Sirikit', photo: '/team/sirikit.webp' },
+  { name: 'Sherie' },
+  { name: 'Jiandale', photo: '/team/jiandale.webp' },
+  { name: 'Jodenn' },
+  { name: 'Rene', photo: '/team/rene.webp' },
+  { name: 'Andi', photo: '/team/andi.webp' },
+]
 
 /* ---------- helpers ---------- */
 
@@ -159,6 +170,41 @@ function OpenButton({ onOpen, label = 'Launch the app', variant = 'sun' }: { onO
   )
 }
 
+function ThemeToggle() {
+  const [pref, setPref] = useTheme()
+  const [sysDark, setSysDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches)
+  useEffect(() => {
+    const mq = matchMedia('(prefers-color-scheme: dark)')
+    const on = () => setSysDark(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  const dark = pref === 'dark' || (pref === 'system' && sysDark)
+  return (
+    <button
+      type="button"
+      onClick={() => setPref(dark ? 'light' : 'dark')}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={dark ? 'Light mode' : 'Dark mode'}
+      className="relative grid h-11 w-11 place-items-center rounded-full text-[var(--ink)] transition-[background-color,transform] duration-150 hover:bg-[var(--card-2)] active:scale-[0.94]"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <motion.g initial={false} animate={{ opacity: dark ? 0 : 1, scale: dark ? 0.6 : 1, rotate: dark ? -45 : 0 }} transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }} style={{ transformOrigin: '12px 12px' }}>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4" />
+        </motion.g>
+        <motion.path
+          d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"
+          initial={false}
+          animate={{ opacity: dark ? 1 : 0, scale: dark ? 1 : 0.6, rotate: dark ? 0 : 45 }}
+          transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
+          style={{ transformOrigin: '12px 12px' }}
+        />
+      </svg>
+    </button>
+  )
+}
+
 /* ---------- sections ---------- */
 
 function Nav({ onOpen }: { onOpen: () => void }) {
@@ -178,7 +224,7 @@ function Nav({ onOpen }: { onOpen: () => void }) {
     >
       <nav
         aria-label="Main"
-        className={`mx-auto flex h-[60px] max-w-[1240px] items-center justify-between rounded-full pl-4 pr-2 backdrop-blur-xl backdrop-saturate-150 transition-[background-color,box-shadow] duration-300 ${solid ? 'bg-[#fbf8f1]/90 shadow-[0_0_0_1px_rgb(34_31_28/0.08),0_10px_30px_-18px_rgb(34_31_28/0.35)]' : 'bg-[#fbf8f1]/80 shadow-[0_0_0_1px_rgb(34_31_28/0.06)]'}`}
+        className={`mx-auto flex h-[60px] max-w-[1240px] items-center justify-between rounded-full pl-4 pr-2 backdrop-blur-xl backdrop-saturate-150 transition-[background-color,box-shadow] duration-300 bg-[var(--nav)] ${solid ? 'shadow-[0_0_0_1px_var(--line),0_10px_30px_-18px_rgb(0_0_0/0.35)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
       >
         <a href="#top" onClick={(e) => { e.preventDefault(); lenis ? lenis.scrollTo(0, { duration: 1.2 }) : window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="flex items-center gap-2.5" aria-label="Gnomon home">
           <GnomonMark height={24} />
@@ -193,14 +239,17 @@ function Nav({ onOpen }: { onOpen: () => void }) {
             </li>
           ))}
         </ul>
-        <a
-          href="/dashboard"
-          onClick={(e) => { if (e.metaKey || e.ctrlKey || e.button !== 0) return; e.preventDefault(); onOpen() }}
-          className="inline-flex h-11 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-[14px] font-semibold tracking-[-0.02em] text-[var(--cream)] transition-transform duration-150 active:scale-[0.97]"
-        >
-          <span className="h-2 w-2 rounded-full bg-[var(--sun)]" aria-hidden />
-          Launch app
-        </a>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <a
+            href="/dashboard"
+            onClick={(e) => { if (e.metaKey || e.ctrlKey || e.button !== 0) return; e.preventDefault(); onOpen() }}
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-[14px] font-semibold tracking-[-0.02em] text-[var(--on-ink)] transition-transform duration-150 active:scale-[0.97]"
+          >
+            <span className="h-2 w-2 rounded-full bg-[var(--sun)]" aria-hidden />
+            Launch app
+          </a>
+        </div>
       </nav>
     </motion.header>
   )
@@ -224,14 +273,14 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
           {/* Headline block */}
           <motion.div style={{ opacity: textOpacity, y: textY }} className="absolute inset-x-0 bottom-0 px-5 pb-8 sm:px-10 sm:pb-12 lg:px-14 lg:pb-14">
             <div className="max-w-[760px]">
-              <motion.h1
-                initial={reduce ? false : { opacity: 0, y: 28, filter: 'blur(8px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                transition={{ duration: 1.1, ease: EASE, delay: 0.25 }}
+              <BlurText
+                as="h1"
+                onLoad
+                delay={0.25}
+                stagger={0.08}
+                text="Find where the Moon stays lit."
                 className="display brand-display text-[clamp(38px,6.1vw,92px)] text-[var(--cream)]"
-              >
-                Find where the Moon stays lit.
-              </motion.h1>
+              />
               <motion.p
                 initial={reduce ? false : { opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -263,7 +312,7 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
             initial={reduce ? false : { opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.9, ease: EASE, delay: 0.9 }}
-            className="light absolute bottom-8 right-8 hidden w-[340px] rounded-[26px] bg-[#fbf8f1]/95 p-2 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] backdrop-blur-xl lg:block"
+            className="light absolute bottom-8 right-8 hidden w-[340px] rounded-[26px] bg-[color-mix(in_srgb,var(--card)_95%,transparent)] p-2 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] backdrop-blur-xl lg:block"
             aria-label="Example site"
           >
             <div className="rounded-[20px] bg-[var(--card)] p-5">
@@ -311,7 +360,8 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
 
 function Word({ children, progress, range }: { children: string; progress: MotionValue<number>; range: [number, number] }) {
   const opacity = useTransform(progress, range, [0.16, 1])
-  return <motion.span style={{ opacity }}>{children} </motion.span>
+  const filter = useTransform(progress, range, ['blur(6px)', 'blur(0px)'])
+  return <><motion.span className="inline-block" style={{ opacity, filter }}>{children}</motion.span> </>
 }
 
 function Statement() {
@@ -348,7 +398,7 @@ function BeforeAfter() {
       <div className="sticky top-24 sm:top-28">
         <div className="glass p-7 sm:p-10">
           <p className="small text-[var(--ink-2)]">Without Gnomon</p>
-          <h3 className="h3 mt-3 max-w-[18ch]">Hours across three NASA tools.</h3>
+          <BlurText as="h3" className="h3 mt-3 max-w-[18ch]" text="Hours across three NASA tools." />
           <ul className="mt-16 flex flex-col gap-3.5 sm:mt-24">
             {WITHOUT.map((t) => (
               <li key={t} className="flex items-center gap-3 text-[15px] font-semibold tracking-[-0.02em] text-[var(--ink-2)]"><Check />{t}</li>
@@ -359,7 +409,7 @@ function BeforeAfter() {
       <div className="sticky top-32 mt-[40vh] sm:top-36">
         <div className="card relative overflow-hidden p-7 shadow-[0_40px_90px_-40px_rgb(0_0_0/0.9)] sm:p-10">
           <p className="small text-[var(--ink-2)]">With Gnomon</p>
-          <h3 className="h3 mt-3 max-w-[18ch]">A verdict in seconds.</h3>
+          <BlurText as="h3" className="h3 mt-3 max-w-[18ch]" text="A verdict in seconds." />
           <div className="absolute right-6 top-6 sm:right-10 sm:top-9"><Five size={64} mode="idle" title="Five" /></div>
           <ul className="mt-16 flex flex-col gap-3.5 sm:mt-24">
             {WITH.map((t) => (
@@ -380,7 +430,7 @@ function HowItWorks() {
       <div ref={ref} className="flex flex-wrap items-end justify-between gap-8">
         <Reveal>
           <p className="small text-[var(--ink-2)]">How it works</p>
-          <h2 className="h2 mt-3 max-w-[16ch]">From a date to a decision in three steps.</h2>
+          <BlurText className="h2 mt-3 max-w-[16ch]" text="From a date to a decision in three steps." />
         </Reveal>
         <div className="hidden sm:block">{inView && <Five size={112} draw mode="idle" title="Five drawing itself" />}</div>
       </div>
@@ -407,7 +457,7 @@ function Features() {
     <section id="features" className="relative mx-auto max-w-[1240px] scroll-mt-28 px-5 pb-[10vh] sm:px-8">
       <Reveal>
         <p className="small text-[var(--ink-2)]">Features</p>
-        <h2 className="h2 mt-3 max-w-[20ch]">What a landing team asks, answered on one screen.</h2>
+        <BlurText className="h2 mt-3 max-w-[20ch]" text="What a landing team asks, answered on one screen." />
       </Reveal>
       <div className="mt-14 flex flex-col gap-4">
         {FEATURES.map((f, i) => (
@@ -418,7 +468,7 @@ function Features() {
                   <span className="chip"><span className="h-1.5 w-1.5 rounded-full bg-[var(--sun)]" aria-hidden />{f.tag}</span>
                   <span className="tabular text-[15px] font-semibold text-[var(--ink-2)]">0{i + 1}</span>
                 </div>
-                <h3 className="h3 mt-8 lg:mt-12">{f.title}</h3>
+                <BlurText as="h3" className="h3 mt-8 lg:mt-12" text={f.title} />
                 <p className="body mt-4">{f.body}</p>
                 <ul className="mt-auto flex flex-col gap-2.5 pt-8">
                   {f.points.map((p) => (
@@ -442,12 +492,12 @@ function Features() {
 function Validation() {
   return (
     <section id="validation" className="scroll-mt-24 px-2 py-[8vh] sm:px-3">
-      <div className="relative overflow-hidden rounded-[28px] bg-[var(--space)] px-5 py-[12vh] text-[var(--cream)] sm:rounded-[36px] sm:px-10 lg:px-14">
+      <div className="space-panel relative overflow-hidden rounded-[28px] bg-[var(--space)] px-5 py-[12vh] text-[var(--cream)] sm:rounded-[36px] sm:px-10 lg:px-14">
         <div className="pointer-events-none absolute -right-[18%] -top-[30%] h-[640px] w-[640px] rounded-full bg-[radial-gradient(circle_at_35%_35%,rgb(210_80_42/0.28),transparent_60%)]" aria-hidden />
         <div className="relative mx-auto max-w-[1180px]">
           <Reveal>
             <p className="small text-[#fffdf6]/60">Validated against NASA</p>
-            <h2 className="h2 mt-3 max-w-[22ch]">We checked our math against JPL’s own.</h2>
+            <BlurText className="h2 mt-3 max-w-[22ch]" text="We checked our math against JPL’s own." />
           </Reveal>
           <div className="mt-16 grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-end">
             <Reveal>
@@ -485,7 +535,7 @@ function Sites() {
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
         <Reveal>
           <p className="small text-[var(--ink-2)]">Nine sites</p>
-          <h2 className="h2 mt-3 max-w-[20ch]">From the sunniest ridge to a place Earth never rises.</h2>
+          <BlurText className="h2 mt-3 max-w-[20ch]" text="From the sunniest ridge to a place Earth never rises." />
         </Reveal>
       </div>
       <div className="marquee-wrap mt-12 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]">
@@ -536,7 +586,7 @@ function MeetFive() {
             onPointerEnter={() => mode !== 'speak' && setMode('listen')}
             onPointerLeave={() => mode !== 'speak' && setMode('idle')}
             onClick={speak}
-            className="relative grid aspect-square w-full place-items-center rounded-[32px] bg-[#efe9dc] shadow-[0_0_0_1px_var(--line)]"
+            className="relative grid aspect-square w-full place-items-center rounded-[32px] bg-[var(--sand)] shadow-[0_0_0_1px_var(--line)]"
             aria-label="Talk to Five"
           >
             <Five size={260} mode={mode} title="Five" />
@@ -546,7 +596,7 @@ function MeetFive() {
         <div className="p-2 sm:p-6 lg:pl-12">
           <Reveal>
             <p className="small text-[var(--ink-2)]">Meet Five</p>
-            <h2 className="h2 mt-3">Our guide to the Moon’s light.</h2>
+            <BlurText className="h2 mt-3" text="Our guide to the Moon’s light." />
             <p className="body mt-6 max-w-[46ch]">
               Our team, Lagrange Point, is named after the five places in space where a small body can ride along with two big ones. Five is named after L5, which always sits at the tip of an equilateral triangle. The triangle is Five. The dot is the Sun.
             </p>
@@ -556,7 +606,7 @@ function MeetFive() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: EASE }}
-            className="mt-8 max-w-[44ch] rounded-[22px] rounded-bl-[6px] bg-[var(--ink)] px-5 py-4 text-[15px] font-semibold leading-snug tracking-[-0.02em] text-[var(--cream)]"
+            className="mt-8 max-w-[44ch] rounded-[22px] rounded-bl-[6px] bg-[var(--ink)] px-5 py-4 text-[15px] font-semibold leading-snug tracking-[-0.02em] text-[var(--on-ink)]"
             aria-live="polite"
           >
             {FIVE_LINES[line]}
@@ -567,39 +617,30 @@ function MeetFive() {
   )
 }
 
-function Team() {
-  return (
-    <section className="mx-auto max-w-[1240px] px-5 py-[8vh] sm:px-8" aria-label="Team">
-      <Reveal>
-        <p className="small text-[var(--ink-2)]">The team</p>
-        <h2 className="h2 mt-3 max-w-[20ch]">Built by Lagrange Point.</h2>
-        <p className="body mt-4 max-w-[48ch]">Six students from Iligan City, Philippines, for the 2026 NASA Space Apps Challenge.</p>
-      </Reveal>
-      <ul className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {TEAM.map((n, i) => (
-          <li key={n}><Reveal delay={i * 0.05}>
-            <div className="card flex flex-col items-start gap-6 p-5">
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-[var(--card-2)] text-[17px] font-semibold tracking-[-0.03em]" aria-hidden>{n[0]}</span>
-              <span className="text-[17px] font-semibold tracking-[-0.03em]">{n}</span>
-            </div>
-          </Reveal></li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
 function FinalCta({ onOpen }: { onOpen: () => void }) {
   return (
     <section className="px-2 pb-2 pt-[6vh] sm:px-3 sm:pb-3">
-      <div className="relative overflow-hidden rounded-[28px] bg-[#efe9dc] px-5 py-[14vh] text-center sm:rounded-[36px]">
+      <div className="relative overflow-hidden rounded-[28px] bg-[var(--sand)] px-5 py-[14vh] text-center sm:rounded-[36px]">
         <Reveal>
           <div className="mx-auto mb-8 w-fit"><Five size={84} mode="idle" title="Five" /></div>
-          <h2 className="display brand-display mx-auto max-w-[15ch] text-[clamp(36px,5.8vw,84px)]">Plan a landing in 30 seconds.</h2>
+          <BlurText stagger={0.07} className="display brand-display mx-auto max-w-[15ch] text-[clamp(36px,5.8vw,84px)]" text="Plan a landing in 30 seconds." />
           <p className="body mx-auto mt-5 max-w-[40ch]">Pick a site and a date. We do the rest.</p>
           <div className="mt-10 flex justify-center"><OpenButton onOpen={onOpen} /></div>
         </Reveal>
       </div>
+      {/* Members area: the team's ID badges hang from the top edge on their lanyards */}
+      <section id="team" aria-label="Team Lagrange Point" className="relative mt-2 overflow-hidden rounded-[28px] bg-[var(--card-2)] sm:mt-3 sm:rounded-[36px]">
+        <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
+          <TeamBadges members={TEAM} />
+          <div className="flex flex-col gap-4 pb-10 pt-2 sm:pb-14 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="small text-[var(--ink-2)]">Members area</p>
+              <BlurText as="h2" className="h2 mt-3" text="Team Lagrange Point" />
+            </div>
+            <p className="body max-w-[44ch] lg:text-right">Six students from Iligan City, Philippines, building for the 2026 NASA Space Apps Challenge. Grab a badge and give it a swing.</p>
+          </div>
+        </div>
+      </section>
       <footer className="mx-auto flex max-w-[1240px] flex-col gap-3 px-3 pb-6 pt-8 text-[13px] font-semibold tracking-[-0.01em] text-[var(--ink-2)] sm:flex-row sm:items-start sm:justify-between">
         <p className="flex items-center gap-2"><GnomonMark height={16} /><span><span className="brand text-[15px] text-[var(--ink)]">Gnomon</span> by Lagrange Point · NASA Space Apps Challenge 2026, Iligan</span></p>
         <p className="max-w-[60ch] sm:text-right">
@@ -616,10 +657,7 @@ export default function Landing({ onOpenDashboard }: { onOpenDashboard: () => vo
   useEffect(() => {
     const prev = document.title
     document.title = 'Gnomon · Find where the Moon stays lit'
-    const html = document.documentElement
-    const bg = html.style.backgroundColor
-    html.style.backgroundColor = '#f4efe4'
-    return () => { document.title = prev; html.style.backgroundColor = bg }
+    return () => { document.title = prev }
   }, [])
   return (
     <div className="lnd min-h-screen">
@@ -640,7 +678,6 @@ export default function Landing({ onOpenDashboard }: { onOpenDashboard: () => vo
         <Validation />
         <Sites />
         <MeetFive />
-        <Team />
         <FinalCta onOpen={onOpenDashboard} />
       </main>
     </div>
