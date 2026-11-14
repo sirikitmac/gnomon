@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import GnomonMark from './GnomonMark'
 import { useEffect, useRef } from 'react'
 import type { ThemePref } from '../lib/theme'
 import type { Dataset } from '../lib/types'
@@ -68,7 +69,7 @@ export default function Menu({ open, onClose, theme, setTheme, ds }: {
             transition={{ duration: 0.24, ease: EASE }}
           >
             <div className="flex items-center justify-between px-5 py-4">
-              <span className="font-display text-lg font-semibold">Lunalit</span>
+              <span className="flex items-center gap-2"><GnomonMark height={20} /><span className="text-[20px] font-[450] tracking-[-0.01em] [font-family:'Fraunces_Variable',Georgia,serif]">Gnomon</span></span>
               <button onClick={onClose} aria-label="Close menu" className="grid h-9 w-9 place-items-center rounded-lg text-ink-2 hover:bg-surface-2">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 3l10 10M13 3L3 13" /></svg>
               </button>
@@ -119,7 +120,7 @@ export default function Menu({ open, onClose, theme, setTheme, ds }: {
               </Section>
 
               <Section title="Credits">
-                <p className="text-ink-2">Built for the 2026 NASA Space Apps Challenge, Lunar Landing Site Navigator, by Team Lagrange Point.</p>
+                <p className="text-ink-2">Built for the 2026 NASA Space Apps Challenge, Lunar Landing Site Navigator, by Team Lagrange Point. Gnomon is the part of a sundial that casts the shadow.</p>
                 <p className="mt-2 text-ink-3">Built with React, three.js, Framer Motion and Recharts. Not affiliated with or endorsed by NASA.</p>
               </Section>
             </div>

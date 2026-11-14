@@ -1,4 +1,8 @@
-# Rocky · Lunar Landing Site Navigator
+<p align="center"><img src="app/public/brand/gnomon-lockup.svg" alt="Gnomon" width="220"></p>
+
+# Gnomon · Lunar Landing Site Navigator
+
+By team **Lagrange Point**. A gnomon is the part of a sundial that casts the shadow; Gnomon tells you where sunlight and Earth contact last at a lunar landing site.
 
 NASA Space Apps Challenge 2026: *Lunar Landing Site Navigator*.
 

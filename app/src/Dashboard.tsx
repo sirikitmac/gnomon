@@ -1,4 +1,5 @@
 import { MotionConfig } from 'framer-motion'
+import GnomonMark from './components/GnomonMark'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ElevationChart from './components/ElevationChart'
 import Menu from './components/Menu'
@@ -290,9 +291,11 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
               e.preventDefault()
               onNavigateHome()
             }}
-            className="font-display text-[17px] font-semibold tracking-tight transition-opacity hover:opacity-80"
+            className="flex items-center gap-2 transition-opacity hover:opacity-80"
+            aria-label="Gnomon home"
           >
-            Lunalit
+            <GnomonMark height={20} />
+            <span className="text-[20px] font-[450] tracking-[-0.01em] [font-family:'Fraunces_Variable',Georgia,serif]">Gnomon</span>
           </a>
           <span className="hidden truncate text-[13px] text-ink-3 2xl:inline">Lunar landing site navigator</span>
         </div>
