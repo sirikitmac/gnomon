@@ -131,7 +131,7 @@ export default function SkyView({ ds, site, a, cursor, onCursor }: {
         <button
           onClick={() => setPlaying((p) => !p)}
           aria-pressed={playing}
-          className="flex min-h-9 items-center gap-2 rounded-[8px] bg-accent px-3 py-1.5 text-[13px] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 hover:brightness-105 active:scale-[0.97]"
+          className="flex min-h-9 items-center gap-2 rounded-full bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 hover:brightness-105 active:scale-[0.97]"
         >
           {playing ? (
             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden><rect x="3" y="2.5" width="3" height="9" rx="0.8" /><rect x="8" y="2.5" width="3" height="9" rx="0.8" /></svg>

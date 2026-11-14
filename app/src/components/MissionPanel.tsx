@@ -72,7 +72,7 @@ export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, no
 
       <div className="flex flex-col gap-1.5">
         <span className="text-xs text-ink-3">Count the Sun as up when</span>
-        <div className="grid grid-cols-2 gap-0.5 rounded-[9px] bg-surface-2 p-[2px] text-xs" role="radiogroup" aria-label="Sun rule">
+        <div className="grid grid-cols-2 gap-0.5 rounded-full bg-surface-2 p-[2px] text-xs" role="radiogroup" aria-label="Sun rule">
           {([['centre', 'Its centre clears'], ['firstLight', 'Its top edge clears']] as const).map(([v, label]) => (
             <button
               key={v}
@@ -80,7 +80,7 @@ export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, no
               role="radio"
               aria-checked={sunMode === v}
               onClick={() => onSunMode(v)}
-              className={`rounded-[7px] px-2 py-1.5 transition-[background-color,color,box-shadow] duration-150 ${sunMode === v ? 'bg-surface font-medium text-ink shadow-control' : 'text-ink-2 hover:text-ink'}`}
+              className={`rounded-full px-2 py-1.5 transition-[background-color,color,box-shadow] duration-150 ${sunMode === v ? 'bg-surface font-medium text-ink shadow-control' : 'text-ink-2 hover:text-ink'}`}
             >
               {label}
             </button>
@@ -107,10 +107,10 @@ export default function MissionPanel({ ds, mission, onChange, onBest, onPlan, no
         <input type="range" min={0} max={14} value={mission.slipDays} onChange={(e) => onChange({ ...mission, slipDays: +e.target.value })} className="[accent-color:var(--color-risk)]" />
       </label>
 
-      <button onClick={onBest} className="min-h-10 rounded-[8px] bg-accent px-3 py-2 text-[13px] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 ease-out hover:brightness-105 active:scale-[0.97]">
+      <button onClick={onBest} className="min-h-10 rounded-full bg-accent px-3 py-2 text-[13px] font-medium text-on-accent shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[transform,filter] duration-100 ease-out hover:brightness-105 active:scale-[0.97]">
         Find the best landing date
       </button>
-      <button onClick={onPlan} className="-mt-2 min-h-10 rounded-[8px] bg-surface px-3 py-2 text-[13px] font-medium text-accent shadow-control transition-[transform,background-color] duration-100 ease-out hover:bg-accent/5 active:scale-[0.97]">
+      <button onClick={onPlan} className="-mt-2 min-h-10 rounded-full bg-surface px-3 py-2 text-[13px] font-medium text-accent shadow-control transition-[transform,background-color] duration-100 ease-out hover:bg-accent/5 active:scale-[0.97]">
         Plan it for me: best site and date
       </button>
     </div>

@@ -394,7 +394,7 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
       {sites.filter((x) => x.id !== site.id).map((x) => (
         <mesh key={x.id} position={latLonToVec(x.lat, x.lonEast, 1.003)}>
           <sphereGeometry args={[0.0045, 12, 12]} />
-          <meshBasicMaterial color="#e5e9f1" />
+          <meshBasicMaterial color="#f1ece2" />
         </mesh>
       ))}
     </>
@@ -439,9 +439,9 @@ export default function MoonScene(props: Props) {
             className={
               'absolute left-0 top-0 ' +
               (sp.kind === 'feature'
-                ? 'cursor-pointer select-none whitespace-nowrap text-[10px] tracking-wide text-[#c9d1e0]/85 [text-shadow:0_1px_2px_#000] transition-colors duration-150 hover:text-white'
+                ? 'cursor-pointer select-none whitespace-nowrap text-[10px] tracking-wide text-[#d9d3c7]/85 [text-shadow:0_1px_2px_#000] transition-colors duration-150 hover:text-white'
                 : `select-none whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium shadow transition-colors duration-150 ${
-                    sp.kind === 'active' ? 'z-20 bg-[#3ddc97] text-[#04140d]' : 'z-10 cursor-pointer bg-[#0f1626]/85 text-[#e5e9f1] ring-1 ring-white/15 hover:bg-[#1d2a44]'
+                    sp.kind === 'active' ? 'z-20 bg-[#3ddc97] text-[#04140d]' : 'z-10 cursor-pointer bg-[#0e1118]/85 text-[#f1ece2] ring-1 ring-white/15 hover:bg-[#1d2a44]'
                   }`)
             }
             style={{ opacity: 0 }}
@@ -487,14 +487,14 @@ export default function MoonScene(props: Props) {
           top: 'calc(var(--map-top, 0px) + 12px)',
         }}
       >
-        <span className="hidden rounded-md bg-[#0f1626]/70 px-2 py-1 text-[11px] text-[#a2adc2] backdrop-blur xl:inline">Drag to rotate, scroll to zoom</span>
+        <span className="hidden rounded-full bg-[#0e1118]/70 px-3 py-1 text-[11px] text-[#b3ac9f] backdrop-blur xl:inline">Drag to rotate, scroll to zoom</span>
         <button
           type="button"
           aria-pressed={showFeatures}
           onClick={() => { setShowFeatures((v) => !v); setPicked(null) }}
           title="Official names of craters, seas, mountains and valleys from the IAU Gazetteer (USGS). Zoom in to see more; click a name for details."
-          className={`pointer-events-auto rounded-md px-2.5 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
-            showFeatures ? 'bg-[#e5e9f1] text-[#0f1626] ring-transparent' : 'bg-[#0f1626]/80 text-[#e5e9f1] ring-white/15 hover:bg-[#1d2a44]'
+          className={`pointer-events-auto rounded-full px-3 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
+            showFeatures ? 'bg-[#fbf8f1] text-[#221f1c] ring-transparent' : 'bg-[#0e1118]/80 text-[#f1ece2] ring-white/15 hover:bg-[#1d2a44]'
           }`}
         >
           Moon names
@@ -504,8 +504,8 @@ export default function MoonScene(props: Props) {
           aria-pressed={milkyWay}
           onClick={() => setMilkyWay(!milkyWay)}
           title="Show the real star sky from NASA's star map, Milky Way included, turned to where it really is on this date. Downloads about 1 MB the first time."
-          className={`pointer-events-auto rounded-md px-2.5 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
-            milkyWay ? 'bg-[#e5e9f1] text-[#0f1626] ring-transparent' : 'bg-[#0f1626]/80 text-[#e5e9f1] ring-white/15 hover:bg-[#1d2a44]'
+          className={`pointer-events-auto rounded-full px-3 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
+            milkyWay ? 'bg-[#fbf8f1] text-[#221f1c] ring-transparent' : 'bg-[#0e1118]/80 text-[#f1ece2] ring-white/15 hover:bg-[#1d2a44]'
           }`}
         >
           Milky Way
@@ -516,7 +516,7 @@ export default function MoonScene(props: Props) {
             type="button"
             title={title}
             onClick={() => go(kind)}
-            className="pointer-events-auto rounded-md bg-[#0f1626]/80 px-2.5 py-1 text-xs font-medium text-[#e5e9f1] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
+            className="pointer-events-auto rounded-full bg-[#0e1118]/80 px-3 py-1 text-xs font-medium text-[#f1ece2] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
           >
             {label}
           </button>

@@ -137,7 +137,7 @@ export default function LearnTour({ open, onClose, onNavigate }: { open: boolean
                 </button>
                 <button
                   onClick={() => (last ? onClose() : setStep((i) => i + 1))}
-                  className="min-h-9 rounded-[8px] bg-accent px-4 text-[13px] font-medium text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[filter,transform] hover:brightness-105 active:scale-[0.97]"
+                  className="min-h-9 rounded-full bg-accent px-4 text-[13px] font-medium text-on-accent shadow-[0_1px_2px_rgba(0,0,0,0.12),inset_0_0.5px_0_rgba(255,255,255,0.25)] transition-[filter,transform] hover:brightness-105 active:scale-[0.97]"
                 >
                   {last ? 'Done' : 'Next'}
                 </button>
