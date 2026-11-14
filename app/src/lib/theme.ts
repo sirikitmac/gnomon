@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 
 export type ThemePref = 'light' | 'dark' | 'system'
-const KEY = 'rocky-theme'
+// New key: the old one stored 'system' for everyone by default, which put many visitors in dark mode.
+const KEY = 'gnomon-theme'
 
 function read(): ThemePref {
   try {
     const v = localStorage.getItem(KEY)
-    return v === 'light' || v === 'dark' ? v : 'system'
+    // Light by default, like the landing page; dark only when someone picks it (or picked system).
+    return v === 'light' || v === 'dark' || v === 'system' ? v : 'light'
   } catch {
-    return 'system'
+    return 'light'
   }
 }
 

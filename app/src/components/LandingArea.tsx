@@ -25,7 +25,7 @@ export default function LandingArea({ ds, site, mission, rules }: { ds: Dataset;
 
   return (
     <section aria-labelledby="area-title" className="border-t border-line px-5 py-4">
-      <h2 id="area-title" className="font-display text-[15px] font-semibold">Landing area</h2>
+      <h2 id="area-title" className="font-display text-[17px] font-semibold">Landing area</h2>
       {!state.done || state.id !== site.id ? (
         <p className="mt-2 text-[12px] text-ink-3">Loading terrain…</p>
       ) : !area || !res ? (

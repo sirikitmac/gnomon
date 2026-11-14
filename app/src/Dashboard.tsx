@@ -69,7 +69,7 @@ function SidebarSection({ title, hint, defaultOpen = true, children }: { title: 
     <section className="border-b border-line last:border-b-0">
       <header className="flex items-center justify-between gap-2 px-4 py-3">
         <div className="min-w-0">
-          <h2 className="font-display text-[15px] font-semibold">{title}</h2>
+          <h2 className="font-display text-[17px] font-semibold">{title}</h2>
           {hint && <p className="text-xs text-ink-3">{hint}</p>}
         </div>
         <button
@@ -96,7 +96,7 @@ function Panel({ id, title, hint, children, className = '' }: { id?: string; tit
       {title && (
         <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-3.5">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h2 className="font-display text-[15px] font-semibold">{title}</h2>
+            <h2 className="font-display text-[17px] font-semibold">{title}</h2>
             {hint && <span className="text-xs text-ink-3">{hint}</span>}
           </div>
           <button
@@ -581,7 +581,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                       aria-label={`Verdict ${a.verdict} for ${site.name}, ${Math.round(mission.durationH / 24)} days. Show details`}
                       className="flex h-11 w-full items-center gap-2.5 border-b border-line bg-surface/92 px-3 text-left shadow-pop backdrop-blur-2xl backdrop-saturate-150"
                     >
-                      <span className={`rounded-md px-2 py-0.5 font-display text-[13px] font-semibold ${VERDICT_CHIP[a.verdict]}`}>{a.verdict}</span>
+                      <span className={`rounded-md px-2 py-0.5 text-[13px] font-bold ${VERDICT_CHIP[a.verdict]}`}>{a.verdict}</span>
                       <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{site.name}</span>
                       <span className="shrink-0 text-[12px] tabular text-ink-3">{Math.round(mission.durationH / 24)} d · sun {Math.round(a.sunPct)}%</span>
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-ink-3" aria-hidden><path d="M4 6l4 4 4-4" /></svg>
@@ -648,7 +648,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                   {bottomOpen && (
                     <section id="timeline" className="border-t border-line bg-surface/92 px-4 py-3 shadow-pop backdrop-blur-2xl backdrop-saturate-150">
                       <header className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                        <h2 className="font-display text-[15px] font-semibold">Timeline</h2>
+                        <h2 className="font-display text-[17px] font-semibold">Timeline</h2>
                         <span className="text-xs text-ink-3">Drag to move the landing. Solid box: mission. Dashed box: delayed landing.</span>
                       </header>
                       <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />

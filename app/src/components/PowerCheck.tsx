@@ -68,7 +68,7 @@ export default function PowerCheck({ ds, site, mission, lander, onChange, screen
 
       <div className="rounded-[10px] bg-surface-2 p-3">
         <div className="flex items-center gap-2.5">
-          <span className={`rounded-lg px-2.5 py-1 font-display text-[15px] font-semibold ${vStyle[r.verdict]}`}>{r.verdict}</span>
+          <span className={`rounded-lg px-2.5 py-1 text-[14px] font-bold ${vStyle[r.verdict]}`}>{r.verdict}</span>
           <div className="min-w-0 text-[12px] leading-snug">
             <div className="font-medium tabular">Lowest charge {Math.round(r.minPct)}%</div>
             <div className="text-ink-3 tabular">{fmtDate(idxToDate(ds, r.minIdx))}</div>
