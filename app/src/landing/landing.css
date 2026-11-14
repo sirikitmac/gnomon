@@ -1,0 +1,106 @@
+/* Lunalit landing page. Scoped to .lnd so the dashboard's tokens and theme are untouched. */
+.lnd {
+  --paper: #f4efe4;
+  --card: #fbf8f1;
+  --card-2: #ece5d6;
+  --ink: #221f1c;
+  --ink-2: #5c564d;
+  --line: rgb(34 31 28 / 0.1);
+  --sun: #d2502a;
+  --sun-ink: #b6401d;
+  --space: #07090d;
+  --cream: #fffdf6;
+  --five-ink: var(--ink);
+  --five-sun: var(--sun);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: 'ss01';
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+}
+
+.lnd ::selection { background: var(--sun); color: var(--cream); }
+
+.lnd .display {
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+.lnd .h2 {
+  font-size: clamp(36px, 5.2vw, 64px);
+  font-weight: 400;
+  letter-spacing: -0.042em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+.lnd .h3 {
+  font-size: clamp(24px, 2.4vw, 32px);
+  font-weight: 450;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+.lnd .body { font-size: 16px; line-height: 1.55; font-weight: 500; letter-spacing: -0.012em; color: var(--ink-2); text-wrap: pretty; }
+.lnd .small { font-size: 13px; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em; }
+.lnd .tabular { font-variant-numeric: tabular-nums; }
+
+/* Pill button with a dot, Kora-style; the dot is the Sun */
+.lnd .pill {
+  display: inline-flex; align-items: center; gap: 14px;
+  height: 52px; padding: 0 8px 0 24px; border-radius: 999px;
+  font-size: 15px; font-weight: 600; letter-spacing: -0.02em;
+  transition: transform 160ms var(--ease-out), background-color 160ms ease, box-shadow 160ms ease;
+}
+.lnd .pill:active { transform: scale(0.97); }
+.lnd .pill .knob {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px;
+  transition: transform 260ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .lnd .pill:hover .knob { transform: translateX(3px); }
+}
+.lnd .pill-sun { background: var(--sun); color: var(--cream); box-shadow: 0 1px 0 rgb(255 255 255 / 0.25) inset, 0 8px 24px -10px rgb(210 80 42 / 0.7); }
+.lnd .pill-sun:hover { background: var(--sun-ink); }
+.lnd .pill-sun .knob { background: var(--cream); color: var(--sun); }
+.lnd .pill-ink { background: var(--ink); color: var(--cream); }
+.lnd .pill-ink .knob { background: var(--sun); color: var(--cream); }
+
+.lnd .chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
+  background: var(--card-2); color: var(--ink);
+}
+
+.lnd .card { background: var(--card); border-radius: 32px; box-shadow: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 0 0 1px var(--line); }
+
+.lnd .shot {
+  border-radius: 20px; overflow: hidden; background: #fff;
+  box-shadow: 0 0 0 1px rgb(34 31 28 / 0.08), 0 24px 60px -24px rgb(34 31 28 / 0.35);
+}
+.lnd .shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top; }
+
+.lnd a:focus-visible, .lnd button:focus-visible { outline: 2px solid var(--sun); outline-offset: 3px; border-radius: 999px; }
+
+/* Sites marquee */
+@keyframes lnd-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.lnd .marquee { animation: lnd-marquee 60s linear infinite; }
+.lnd .marquee-wrap:hover .marquee { animation-play-state: paused; }
+
+/* Scroll hint dot */
+@keyframes lnd-hint { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(6px); opacity: 0.6; } }
+.lnd .hint-dot { animation: lnd-hint 1.8s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lnd .marquee, .lnd .hint-dot { animation: none; }
+  .lnd .pill, .lnd .pill .knob { transition: none; }
+}
+
+/* Lenis */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
