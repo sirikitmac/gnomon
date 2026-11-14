@@ -292,7 +292,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
             }}
             className="font-display text-[17px] font-semibold tracking-tight transition-opacity hover:opacity-80"
           >
-            Rocky
+            Lunalit
           </a>
           <span className="hidden truncate text-[13px] text-ink-3 2xl:inline">Lunar landing site navigator</span>
         </div>

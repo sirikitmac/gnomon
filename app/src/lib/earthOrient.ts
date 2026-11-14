@@ -2,7 +2,7 @@
  * Approximate geometry for drawing Earth in the Moon's sky: its distance from the Moon and which way
  * it is turned (spin axis and the longitude facing the Moon). Uses short series from Meeus,
  * "Astronomical Algorithms" (Moon position ~0.3°, distance ~1%, Sun ~0.01°). This only orients the
- * picture; Rocky's Sun and Earth positions still come from JPL Horizons.
+ * picture; Lunalit's Sun and Earth positions still come from JPL Horizons.
  */
 
 export type V3 = [number, number, number]
