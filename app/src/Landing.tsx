@@ -109,12 +109,12 @@ const FIVE_LINES = [
 ]
 
 const TEAM: Member[] = [
-  { name: 'Sirikit', photo: '/team/sirikit.webp' },
-  { name: 'Sherie', photo: '/team/sherie.webp' },
-  { name: 'Jiandale', photo: '/team/jiandale.webp' },
-  { name: 'Jodenn', photo: '/team/jodenn.webp' },
-  { name: 'Rene', photo: '/team/rene.webp' },
-  { name: 'Andi', photo: '/team/andi.webp' },
+  { name: 'Sirikit', role: 'Lead Front-end Developer & UI/UX Designer', photo: '/team/sirikit.webp' },
+  { name: 'Sherie', role: 'Data Analyst & Mobile Developer', photo: '/team/sherie.webp' },
+  { name: 'Jiandale', role: 'AI & Backend Lead', photo: '/team/jiandale.webp' },
+  { name: 'Jodenn', role: 'Lunar Science Researcher', photo: '/team/jodenn.webp' },
+  { name: 'Rene', role: 'Media & Presentation Lead', photo: '/team/rene.webp' },
+  { name: 'Andi', role: 'Animator & Storyteller', photo: '/team/andi.webp' },
 ]
 
 /* ---------- helpers ---------- */

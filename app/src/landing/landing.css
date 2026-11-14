@@ -200,7 +200,7 @@ html:has(.lnd) { background: #f4efe4; }
   .lnd .lnd-team .lnd-badge { width: 100%; padding: 12px; }
   .lnd .lnd-team .lnd-badge-name { font-size: 20px; }
   .lnd .lnd-team .lnd-photo { width: 72%; }
-  .lnd .lnd-team .lnd-barcode { width: 72px; height: 18px; }
+  .lnd .lnd-team .lnd-badge-role { font-size: 10px; }
 }
 
 /* Ask Five: typing dots */
