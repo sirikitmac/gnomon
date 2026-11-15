@@ -4,10 +4,11 @@ import { motion, useReducedMotion, type Transition } from 'framer-motion'
  * Five, the Lagrange Point mascot, redrawn as SVG from the team's GIFs so it stays crisp on any
  * background. The triangle is the L5 equilateral triangle; the dot is the Sun.
  *
- * mode: "idle" (the dot breathes), "speak" (the dot pulses like a voice), "listen" (Five tilts and
- * rings ripple out). `draw` plays the sides drawing themselves in first, like the intro video.
+ * mode: "idle" (the dot breathes), "speak" (the dot pulses with voice energy), "listen" (Five tilts
+ * and rings ripple out), "think" (gentle contemplative tilt while a reply is generated).
+ * `draw` plays the sides drawing themselves in first, like the intro video.
  */
-export type FiveMode = 'idle' | 'speak' | 'listen'
+export type FiveMode = 'idle' | 'speak' | 'listen' | 'think'
 
 const INK = 'var(--five-ink, #221F1C)'
 const SUN = 'var(--five-sun, #D2502A)'
@@ -18,9 +19,11 @@ const B = { x: 394, y: 373 }
 const C = { x: 118, y: 373 }
 const DOT = { x: 256, y: 292, r: 27 }
 
-export default function Five({ mode = 'idle', draw = false, size = 120, title = 'Five, the Lagrange Point mascot', className }: {
+export default function Five({ mode = 'idle', draw = false, energy, size = 120, title = 'Five, the Lagrange Point mascot', className }: {
   mode?: FiveMode
   draw?: boolean
+  /** Optional normalized audio energy [0..1] for live voice amplitude reactivity. */
+  energy?: number
   size?: number
   title?: string
   className?: string
@@ -29,28 +32,55 @@ export default function Five({ mode = 'idle', draw = false, size = 120, title = 
   const animateDraw = draw && !reduce
   const side = (i: number): Transition => ({ duration: 0.38, delay: 0.12 + i * 0.32, ease: [0.65, 0, 0.35, 1] })
   const after = animateDraw ? 1.2 : 0
+  const liveEnergy = typeof energy === 'number' && energy > 0 ? Math.min(1, Math.max(0, energy)) : 0
 
   const dotAnim = reduce
     ? { scale: 1 }
     : mode === 'speak'
-      ? { scale: [1, 1.28, 0.86, 1.18, 0.92, 1.24, 1] }
-      : mode === 'listen'
-        ? { scale: 1.06 }
-        : { scale: [1, 0.86, 1] }
+      ? (liveEnergy > 0
+        ? { scale: 0.96 + liveEnergy * 0.42 }
+        : { scale: [1, 1.28, 0.86, 1.18, 0.92, 1.24, 1] })
+      : mode === 'think'
+        ? { scale: [0.9, 1.12, 0.9] }
+        : mode === 'listen'
+          ? { scale: 1.04 + liveEnergy * 0.28 }
+          : { scale: [1, 0.86, 1] }
   const dotTransition: Transition = reduce
     ? { duration: 0 }
     : mode === 'speak'
-      ? { duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: after }
-      : mode === 'listen'
-        ? { type: 'spring', stiffness: 260, damping: 18 }
-        : { duration: 2.9, repeat: Infinity, ease: 'easeInOut', delay: after }
+      ? (liveEnergy > 0
+        ? { type: 'spring', stiffness: 420, damping: 22 }
+        : { duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: after })
+      : mode === 'think'
+        ? { duration: 1.1, repeat: Infinity, ease: 'easeInOut', delay: after }
+        : mode === 'listen'
+          ? { type: 'spring', stiffness: 260, damping: 18 }
+          : { duration: 2.9, repeat: Infinity, ease: 'easeInOut', delay: after }
 
   return (
     <svg viewBox="70 70 372 362" width={size} height={size * (362 / 372)} role="img" aria-label={title} className={className}>
       <motion.g
         style={{ transformBox: 'fill-box', transformOrigin: '50% 60%' }}
-        animate={{ rotate: mode === 'listen' && !reduce ? -11 : 0, y: mode === 'speak' && !reduce ? [0, -4, 0] : 0 }}
-        transition={mode === 'speak' ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' } : { type: 'spring', stiffness: 200, damping: 16 }}
+        animate={
+          reduce
+            ? { rotate: 0, y: 0 }
+            : mode === 'listen'
+              ? { rotate: -11, y: 0 }
+              : mode === 'think'
+                ? { rotate: [-4, 4, -4], y: [0, -2, 0] }
+                : mode === 'speak'
+                  ? { rotate: 0, y: liveEnergy > 0 ? -liveEnergy * 6 : [0, -4, 0] }
+                  : { rotate: 0, y: 0 }
+        }
+        transition={
+          mode === 'think'
+            ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
+            : mode === 'speak'
+              ? (liveEnergy > 0
+                ? { type: 'spring', stiffness: 320, damping: 20 }
+                : { duration: 0.9, repeat: Infinity, ease: 'easeInOut' })
+              : { type: 'spring', stiffness: 200, damping: 16 }
+        }
       >
         {/* sides: top-right, base, left — drawn in that order, like the "thinking" GIF */}
         {[[A, B], [B, C], [C, A]].map(([p, q], i) => (

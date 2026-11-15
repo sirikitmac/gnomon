@@ -1,6 +1,6 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { earthPose } from '../lib/earthOrient'
@@ -66,6 +66,9 @@ export function useMoonTextures() {
   const procedural = useMemo(() => makeProceduralMoon(), [])
   const [map, setMap] = useState<THREE.Texture>(procedural)
   const [normalMap, setNormalMap] = useState<THREE.Texture | null>(null)
+  // False until the real NASA map arrives, so the cartoon placeholder never flashes on screen.
+  // If the map can't load (offline, blocked), fall back to the placeholder after a few seconds.
+  const [ready, setReady] = useState(false)
   useEffect(() => {
     const loader = new THREE.TextureLoader()
     const aniso = Math.min(8, gl.capabilities.getMaxAnisotropy())
@@ -78,13 +81,16 @@ export function useMoonTextures() {
         t.colorSpace = THREE.SRGBColorSpace
         t.anisotropy = aniso
         setMap(t)
-      }, undefined, () => {})
+        setReady(true)
+      }, undefined, () => { if (!sharp) setReady(true) })
     // Show the 4k map fast, then swap in the 8k one if this device can take it.
     loadColor('/textures/moon_color.jpg', false)
     if (big) loadColor('/textures/moon_color_8k.jpg', true)
     loader.load('/textures/moon_normal.jpg', (t) => { t.anisotropy = aniso; setNormalMap(t) }, undefined, () => {})
+    const fallback = setTimeout(() => setReady(true), 8000)
+    return () => clearTimeout(fallback)
   }, [gl])
-  return { map, normalMap }
+  return { map, normalMap, ready }
 }
 
 interface Props {
@@ -251,8 +257,9 @@ const shortName = (x: Site) => x.name.replace(/\s*\(.*\)\s*/, '')
 let introPlayed = false
 const INTRO_SECONDS = 5
 
-function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProps) {
-  const { map: tex, normalMap } = useMoonTextures()
+function Scene({ site, sites, idx, time, view, specs, els, milkyWay, onReady }: SceneProps & { onReady: () => void }) {
+  const { map: tex, normalMap, ready } = useMoonTextures()
+  useEffect(() => { if (ready) onReady() }, [ready, onReady])
   const sunRef = useRef<THREE.DirectionalLight>(null)
   const markerRef = useRef<THREE.Group>(null)
   const pulseRef = useRef<THREE.Mesh>(null)
@@ -348,7 +355,7 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
     const it = intro.current
     if (it) {
       // Clamp the step: a slow first frame (textures decoding) must not skip the whole spin.
-      it.t = Math.min(1, it.t + Math.min(dt, 1 / 30) / INTRO_SECONDS)
+      if (ready) it.t = Math.min(1, it.t + Math.min(dt, 1 / 30) / INTRO_SECONDS)
       const F = flyTo.current
       const rF = F.length(), pF = Math.acos(F.y / rF), aF = Math.atan2(F.x, F.z)
       // First half: the whole Moon turns in front of you. Second half: dive in and settle over the site.
@@ -426,7 +433,7 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
       {/* Earthshine: sunlight bounced off Earth faintly lights the Moon's night side, more when Earth looks full. */}
       <directionalLight position={earthDir} color="#b4c8ff" intensity={0.45 * earthLit} />
       <directionalLight ref={sunRef} intensity={3.2} color="#fff4e0" position={sunDir} />
-      <mesh>
+      <mesh visible={ready}>
         <sphereGeometry args={[1, 128, 128]} />
         {normalMap ? (
           <meshStandardMaterial map={tex} normalMap={normalMap} normalScale={new THREE.Vector2(1, 1)} roughness={1} metalness={0} />
@@ -434,7 +441,7 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
           <meshStandardMaterial map={tex} roughness={1} metalness={0} bumpMap={tex} bumpScale={0.6} />
         )}
       </mesh>
-      <group ref={markerRef} position={sitePos} scale={Math.abs(site.lat) > 60 ? 0.4 : 1}>
+      <group ref={markerRef} visible={ready} position={sitePos} scale={Math.abs(site.lat) > 60 ? 0.4 : 1}>
         <mesh>
           <circleGeometry args={[0.012, 32]} />
           <meshBasicMaterial color="#3ddc97" />
@@ -456,13 +463,74 @@ function Scene({ site, sites, idx, time, view, specs, els, milkyWay }: SceneProp
         maxDistance={7}
       />
       <LabelLayout specs={specs} els={els} />
-      {sites.filter((x) => x.id !== site.id).map((x) => (
+      {ready && sites.filter((x) => x.id !== site.id).map((x) => (
         <mesh key={x.id} position={latLonToVec(x.lat, x.lonEast, 1.003)}>
           <sphereGeometry args={[0.0045, 12, 12]} />
           <meshBasicMaterial color="#f1ece2" />
         </mesh>
       ))}
     </>
+  )
+}
+
+const VIEWS = [
+  ['site', 'Recenter on the site', 'Fly back to the selected site'],
+  ['south', 'South pole', 'Look straight down on the south pole'],
+  ['north', 'North pole', 'Look straight down on the north pole'],
+  ['earth', 'Earth view', 'Look past the Moon at Earth: real size, real distance, real phase'],
+] as const
+
+/** One "View" menu for the globe: camera presets and the two layers, instead of a row of floating buttons. */
+function ViewMenu({ showFeatures, onFeatures, milkyWay, onMilkyWay, go }: {
+  showFeatures: boolean; onFeatures: () => void; milkyWay: boolean; onMilkyWay: () => void; go: (k: ViewKind) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('pointerdown', onDown); window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [open])
+  const item = 'flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-left text-[13px] font-medium text-[#f1ece2] transition-colors duration-150 hover:bg-white/10'
+  const check = (on: boolean) => (
+    <span className={`grid h-4 w-7 shrink-0 rounded-full p-0.5 transition-colors duration-150 ${on ? 'bg-[#fbf8f1]' : 'bg-white/20'}`} aria-hidden>
+      <span className={`h-3 w-3 rounded-full transition-transform duration-150 ${on ? 'translate-x-3 bg-[#221f1c]' : 'bg-[#f1ece2]'}`} />
+    </span>
+  )
+  return (
+    <div ref={root} className="pointer-events-auto relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={`flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${open ? 'bg-[#fbf8f1] text-[#221f1c] ring-transparent' : 'bg-[#14120f]/80 text-[#f1ece2] ring-white/15 hover:bg-[#2a2622]'}`}
+      >
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="8" cy="8" r="6" /><path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12" /></svg>
+        View
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} aria-hidden><path d="M4 6l4 4 4-4" /></svg>
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-11 w-[240px] rounded-[16px] bg-[#14120f]/92 p-1.5 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_20px_50px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+          <div className="px-3 pb-1 pt-1.5 text-[11px] font-medium text-[#a39c90]">Camera</div>
+          {VIEWS.map(([kind, label, title]) => (
+            <button key={kind} type="button" role="menuitem" title={title} className={item} onClick={() => { go(kind); setOpen(false) }}>{label}</button>
+          ))}
+          <div className="mx-3 my-1.5 h-px bg-white/10" />
+          <div className="px-3 pb-1 pt-0.5 text-[11px] font-medium text-[#a39c90]">Show</div>
+          <button type="button" role="menuitemcheckbox" aria-checked={showFeatures} className={item} onClick={onFeatures}
+            title="Official names of craters, seas, mountains and valleys from the IAU Gazetteer (USGS). Zoom in to see more; click a name for details.">
+            Moon names {check(showFeatures)}
+          </button>
+          <button type="button" role="menuitemcheckbox" aria-checked={milkyWay} className={item} onClick={onMilkyWay}
+            title="Show the real star sky from NASA's star map, Milky Way included, turned to where it really is on this date. Downloads about 1 MB the first time.">
+            Milky Way {check(milkyWay)}
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -481,6 +549,9 @@ function useMilkyWay() {
 }
 
 export default function MoonScene(props: Props) {
+  // Site labels stay hidden until the real Moon map is on screen.
+  const [ready, setReady] = useState(false)
+  const onReady = useCallback(() => setReady(true), [])
   const [view, setView] = useState<{ kind: ViewKind; n: number }>({ kind: 'site', n: 0 })
   const go = (kind: ViewKind) => setView((v) => ({ kind, n: v.n + 1 }))
   const [showFeatures, setShowFeatures] = useState(false)
@@ -492,9 +563,9 @@ export default function MoonScene(props: Props) {
   return (
     <div className="relative h-full w-full">
       <Canvas camera={{ position: [0, 0.4, 3.4], fov: 40, near: 0.01, far: 20000 }} dpr={[1, 2]} gl={{ antialias: true }} className="cursor-grab active:cursor-grabbing">
-        <Scene {...props} view={view} specs={specs} els={els} milkyWay={milkyWay} />
+        <Scene {...props} view={view} specs={specs} els={els} milkyWay={milkyWay} onReady={onReady} />
       </Canvas>
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden={false}>
+      <div className={`pointer-events-none absolute inset-0 overflow-hidden transition-opacity duration-300 ${ready ? 'opacity-100' : 'opacity-0'}`} aria-hidden={false}>
         {specs.map((sp) => (
           <div
             key={sp.key}
@@ -552,40 +623,13 @@ export default function MoonScene(props: Props) {
           top: 'calc(var(--map-top, 0px) + 12px)',
         }}
       >
-        <span className="hidden rounded-full bg-[#0e1118]/70 px-3 py-1 text-[11px] text-[#b3ac9f] backdrop-blur xl:inline">Drag to rotate, scroll to zoom</span>
-        <button
-          type="button"
-          aria-pressed={showFeatures}
-          onClick={() => { setShowFeatures((v) => !v); setPicked(null) }}
-          title="Official names of craters, seas, mountains and valleys from the IAU Gazetteer (USGS). Zoom in to see more; click a name for details."
-          className={`pointer-events-auto rounded-full px-3 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
-            showFeatures ? 'bg-[#fbf8f1] text-[#221f1c] ring-transparent' : 'bg-[#0e1118]/80 text-[#f1ece2] ring-white/15 hover:bg-[#1d2a44]'
-          }`}
-        >
-          Moon names
-        </button>
-        <button
-          type="button"
-          aria-pressed={milkyWay}
-          onClick={() => setMilkyWay(!milkyWay)}
-          title="Show the real star sky from NASA's star map, Milky Way included, turned to where it really is on this date. Downloads about 1 MB the first time."
-          className={`pointer-events-auto rounded-full px-3 py-1 text-xs font-medium ring-1 backdrop-blur transition-colors duration-150 active:scale-[0.97] ${
-            milkyWay ? 'bg-[#fbf8f1] text-[#221f1c] ring-transparent' : 'bg-[#0e1118]/80 text-[#f1ece2] ring-white/15 hover:bg-[#1d2a44]'
-          }`}
-        >
-          Milky Way
-        </button>
-        {([['north', 'North pole', 'Look straight down on the north pole'], ['south', 'South pole', 'Look straight down on the south pole'], ['earth', 'Earth view', 'Look past the Moon at Earth: real size, real distance, real phase'], ['site', 'Recenter', 'Fly back to the selected site']] as const).map(([kind, label, title]) => (
-          <button
-            key={kind}
-            type="button"
-            title={title}
-            onClick={() => go(kind)}
-            className="pointer-events-auto rounded-full bg-[#0e1118]/80 px-3 py-1 text-xs font-medium text-[#f1ece2] ring-1 ring-white/15 backdrop-blur transition-colors duration-150 hover:bg-[#1d2a44] active:scale-[0.97]"
-          >
-            {label}
-          </button>
-        ))}
+        <ViewMenu
+          showFeatures={showFeatures}
+          onFeatures={() => { setShowFeatures((v) => !v); setPicked(null) }}
+          milkyWay={milkyWay}
+          onMilkyWay={() => setMilkyWay(!milkyWay)}
+          go={go}
+        />
       </div>
     </div>
   )

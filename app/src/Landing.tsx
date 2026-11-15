@@ -109,12 +109,12 @@ const FIVE_LINES = [
 ]
 
 const TEAM: Member[] = [
-  { name: 'Sirikit', photo: '/team/sirikit.webp' },
-  { name: 'Sherie', photo: '/team/sherie.webp' },
-  { name: 'Jiandale', photo: '/team/jiandale.webp' },
-  { name: 'Jodenn', photo: '/team/jodenn.webp' },
-  { name: 'Rene', photo: '/team/rene.webp' },
-  { name: 'Andi', photo: '/team/andi.webp' },
+  { name: 'Sirikit', role: 'Lead Front-end Developer & UI/UX Designer', photo: '/team/sirikit.webp' },
+  { name: 'Sherie', role: 'Data Analyst & Mobile Developer', photo: '/team/sherie.webp' },
+  { name: 'Jiandale', role: 'AI & Backend Lead', photo: '/team/jiandale.webp' },
+  { name: 'Jodenn', role: 'Lunar Science Researcher', photo: '/team/jodenn.webp' },
+  { name: 'Rene', role: 'Media & Presentation Lead', photo: '/team/rene.webp' },
+  { name: 'Andi', role: 'Animator & Storyteller', photo: '/team/andi.webp' },
 ]
 
 /* ---------- helpers ---------- */
@@ -216,16 +216,8 @@ function ThemeToggle() {
 
 /* ---------- sections ---------- */
 
-function Nav({ onOpen }: { onOpen: () => void }) {
+function Nav({ onOpen, askOpen, onAskFive }: { onOpen: () => void; askOpen: boolean; onAskFive: () => void }) {
   const [solid, setSolid] = useState(false)
-  const [askOpen, setAskOpen] = useState(false)
-  const askButton = useRef<HTMLButtonElement>(null)
-  // Pause smooth scrolling while the Ask Five window is open, and give focus back on close.
-  useEffect(() => {
-    if (askOpen) { lenis?.stop(); return }
-    lenis?.start()
-  }, [askOpen])
-  const closeAsk = useCallback(() => { setAskOpen(false); askButton.current?.focus() }, [])
   useEffect(() => {
     const on = () => setSolid(window.scrollY > window.innerHeight * 0.6)
     on()
@@ -258,9 +250,8 @@ function Nav({ onOpen }: { onOpen: () => void }) {
         </ul>
         <div className="flex items-center gap-0.5 sm:gap-1">
           <button
-            ref={askButton}
             type="button"
-            onClick={() => setAskOpen(true)}
+            onClick={onAskFive}
             aria-haspopup="dialog"
             aria-expanded={askOpen}
             aria-label="Ask Five"
@@ -280,7 +271,6 @@ function Nav({ onOpen }: { onOpen: () => void }) {
           </a>
         </div>
       </nav>
-      <AskFive open={askOpen} onClose={closeAsk} />
     </motion.header>
   )
 }
@@ -619,16 +609,17 @@ function Sites() {
   )
 }
 
-function MeetFive() {
+function MeetFive({ askOpen, onOpenFive }: { askOpen: boolean; onOpenFive: () => void }) {
   const [mode, setMode] = useState<FiveMode>('idle')
   const [line, setLine] = useState(0)
   const speakTimer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(speakTimer.current), [])
-  const speak = () => {
+  const openLive = () => {
     setLine((l) => (l + 1) % FIVE_LINES.length)
     setMode('speak')
     window.clearTimeout(speakTimer.current)
     speakTimer.current = window.setTimeout(() => setMode('idle'), 2600)
+    onOpenFive()
   }
   return (
     <section id="five" className="mx-auto max-w-[1240px] scroll-mt-28 px-5 py-[10vh] sm:px-8">
@@ -638,30 +629,51 @@ function MeetFive() {
             type="button"
             onPointerEnter={() => mode !== 'speak' && setMode('listen')}
             onPointerLeave={() => mode !== 'speak' && setMode('idle')}
-            onClick={speak}
-            className="relative grid aspect-square w-full place-items-center rounded-[32px] bg-[var(--sand)] shadow-[0_0_0_1px_var(--line)]"
+            onClick={openLive}
+            aria-haspopup="dialog"
+            aria-expanded={askOpen}
+            className="group relative grid aspect-square w-full place-items-center rounded-[32px] bg-[var(--sand)] shadow-[0_0_0_1px_var(--line)] transition-transform duration-200 active:scale-[0.99]"
             aria-label="Talk to Five"
           >
-            <Five size={260} mode={mode} title="Five" />
+            <Five size={260} mode={askOpen ? 'speak' : mode} title="Five" />
+            <span className="absolute bottom-5 inline-flex items-center gap-2 rounded-full bg-[var(--card)]/90 px-4 py-2 text-[13px] font-semibold tracking-[-0.015em] text-[var(--ink)] shadow-[0_0_0_1px_var(--line)] backdrop-blur-sm transition-transform duration-200 group-hover:-translate-y-0.5">
+              <span className="h-2 w-2 rounded-full bg-[var(--sun)]" aria-hidden />
+              Tap to open Five Live
+            </span>
           </button>
         </Reveal>
         <div className="p-2 sm:p-6 lg:pl-12">
           <Reveal>
             <BlurText className="h2" text="Meet Five, our guide to the Moon’s light." />
             <p className="body mt-6 max-w-[46ch]">
-              Lagrange points are the five places where a small body can ride along with two big ones. Five is named after L5, which sits at the tip of an equilateral triangle: the triangle is Five, and the dot is the Sun. Tap Five for a Moon fact, or use Ask Five at the top of the page.
+              Lagrange points are the five places where a small body can ride along with two big ones. Five is named after L5, which sits at the tip of an equilateral triangle: the triangle is Five, and the dot is the Sun. Tap Five to speak or type live about Gnomon’s lunar data.
             </p>
           </Reveal>
-          <motion.div
+          <motion.button
+            type="button"
             key={line}
+            onClick={() => setLine((l) => (l + 1) % FIVE_LINES.length)}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: EASE }}
-            className="mt-8 max-w-[44ch] rounded-[22px] rounded-bl-[6px] bg-[var(--ink)] px-5 py-4 text-[15px] font-semibold leading-snug tracking-[-0.02em] text-[var(--on-ink)]"
+            className="mt-8 block max-w-[44ch] rounded-[22px] rounded-bl-[6px] bg-[var(--ink)] px-5 py-4 text-left text-[15px] font-semibold leading-snug tracking-[-0.02em] text-[var(--on-ink)]"
             aria-live="polite"
+            title="Next Moon fact"
           >
             {FIVE_LINES[line]}
-          </motion.div>
+          </motion.button>
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={onOpenFive}
+              aria-haspopup="dialog"
+              aria-expanded={askOpen}
+              className="pill pill-sun"
+            >
+              Talk to Five
+              <span className="knob"><Arrow /></span>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -700,7 +712,15 @@ function FinalCta({ onOpen }: { onOpen: () => void }) {
 
 export default function Landing({ onOpenDashboard }: { onOpenDashboard: () => void }) {
   const reduce = !!useReducedMotion()
+  const [askOpen, setAskOpen] = useState(false)
   useSmoothScroll(reduce)
+  // Pause smooth scrolling while the Ask Five Live window is open.
+  useEffect(() => {
+    if (askOpen) { lenis?.stop(); return }
+    lenis?.start()
+  }, [askOpen])
+  const openAsk = useCallback(() => setAskOpen(true), [])
+  const closeAsk = useCallback(() => setAskOpen(false), [])
   useEffect(() => {
     const prev = document.title
     document.title = 'Gnomon · Find where the Moon stays lit'
@@ -708,7 +728,7 @@ export default function Landing({ onOpenDashboard }: { onOpenDashboard: () => vo
   }, [])
   return (
     <div className="lnd min-h-screen">
-      <Nav onOpen={onOpenDashboard} />
+      <Nav onOpen={onOpenDashboard} askOpen={askOpen} onAskFive={openAsk} />
       <main>
         {/* The "space" part: one Moon behind all of these sections, moving as you scroll */}
         <div className="zone relative mx-2 mt-2 overflow-clip rounded-[28px] sm:mx-3 sm:mt-3 sm:rounded-[36px]">
@@ -725,9 +745,10 @@ export default function Landing({ onOpenDashboard }: { onOpenDashboard: () => vo
         <HowToUse onOpen={onOpenDashboard} />
         <Validation />
         <Sites />
-        <MeetFive />
+        <MeetFive askOpen={askOpen} onOpenFive={openAsk} />
         <FinalCta onOpen={onOpenDashboard} />
       </main>
+      <AskFive open={askOpen} onClose={closeAsk} />
     </div>
   )
 }

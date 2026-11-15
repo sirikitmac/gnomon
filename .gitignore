@@ -9,3 +9,8 @@ pipeline/raw/
 *.img
 app/public/data/sites.mock.json
 pnpm-lock.yaml
+
+# Environment files with API keys
+.env
+.env.*
+!.env.example

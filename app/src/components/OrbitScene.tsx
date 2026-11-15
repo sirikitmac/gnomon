@@ -52,7 +52,7 @@ function System({ ds, site, sites, st, follow, trueScale, range, labels }: {
   ds: Dataset; site: Site; sites: Site[]; st: React.MutableRefObject<State>; follow: boolean; trueScale: boolean; range: [number, number]
   labels: React.MutableRefObject<Map<string, HTMLElement>>
 }) {
-  const { map, normalMap } = useMoonTextures()
+  const { map, normalMap, ready } = useMoonTextures()
   const { camera, size } = useThree()
   const squeeze = useRef(trueScale ? 1 : SQUEEZE)
   const pathGroup = useRef<THREE.Group>(null)
@@ -213,7 +213,7 @@ function System({ ds, site, sites, st, follow, trueScale, range, labels }: {
       </group>
 
       <group ref={moon}>
-        <mesh>
+        <mesh visible={ready}>
           <sphereGeometry args={[1, 96, 96]} />
           {normalMap
             ? <meshStandardMaterial map={map} normalMap={normalMap} roughness={1} metalness={0} />

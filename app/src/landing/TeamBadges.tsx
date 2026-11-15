@@ -7,30 +7,11 @@ import GnomonMark from '../components/GnomonMark'
  * time the row scrolls into view, swings when the pointer brushes past, and can be grabbed and
  * swung; it settles back like a pendulum. Photo-less members get an empty photo slot.
  */
-export type Member = { name: string; photo?: string }
+export type Member = { name: string; photo?: string; role: string }
 
 const STRAPS = [96, 150, 112, 168, 104, 138] // strap lengths in px, varied so the row looks hung by hand
 // Phone (<= 768px) 2x3 grid: shorter straps so three rows fit; the right column (odd index) always hangs ~36px lower.
 const MOBILE_STRAPS = [72, 108, 48, 84, 56, 92]
-
-/** A deterministic barcode for each name, so it never changes between renders. */
-function Barcode({ seed }: { seed: string }) {
-  let h = 2166136261
-  for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619)
-  const bars: { x: number; w: number }[] = []
-  let x = 0
-  while (x < 92) {
-    h = Math.imul(h ^ (h >>> 13), 2654435761)
-    const w = 1 + ((h >>> 3) & 3) * 0.75
-    if ((h >>> 9) & 1) bars.push({ x, w })
-    x += w + 1.1
-  }
-  return (
-    <svg viewBox="0 0 92 22" className="lnd-barcode h-[22px] w-[92px]" aria-hidden>
-      {bars.map((b, i) => <rect key={i} x={b.x} y={0} width={b.w} height={22} fill="currentColor" />)}
-    </svg>
-  )
-}
 
 /** Faint crater-contour rings behind the card face. */
 function Contours() {
@@ -134,7 +115,7 @@ function Badge({ m, i }: { m: Member; i: number }) {
           onPointerUp={(e) => { dragging.current = false; lift(e, false); rot.set(0) }}
           onPointerCancel={(e) => { dragging.current = false; lift(e, false); rot.set(0) }}
           className="lnd-badge relative w-[176px] cursor-grab touch-pan-y select-none overflow-hidden rounded-[16px] p-3.5 active:cursor-grabbing"
-          aria-label={`${m.name}, Team Lagrange Point`}
+          aria-label={`${m.name}, ${m.role}, Team Lagrange Point`}
         >
           <Contours />
           {/* slot punched for the clip */}
@@ -151,12 +132,10 @@ function Badge({ m, i }: { m: Member; i: number }) {
               <span className="sr-only">Photo coming soon</span>
             )}
           </div>
-          <div className="relative mt-3 flex items-end justify-between">
-            <div>
-              <p className="tabular text-[9.5px] font-bold tracking-[0.01em] opacity-70">ID: {id}</p>
-              <div className="mt-1"><Barcode seed={m.name} /></div>
-            </div>
-            <p className="text-right text-[8.5px] font-bold leading-[1.25] opacity-70">Space Apps<br />2026</p>
+          <p className="lnd-badge-role relative mt-3 min-h-[2.5em] text-[11px] font-bold leading-[1.22] tracking-[-0.01em] [text-wrap:balance]">{m.role}</p>
+          <div className="relative mt-2 flex items-end justify-between">
+            <p className="tabular text-[9.5px] font-bold tracking-[0.01em] opacity-70">ID: {id}</p>
+            <p className="text-right text-[8.5px] font-bold leading-[1.25] opacity-70">Space Apps 2026</p>
           </div>
         </motion.article>
       </motion.div>
