@@ -29,7 +29,14 @@ type WindowGesture = {
   pointerId: number
   startX: number
   startY: number
+  latestX: number
+  latestY: number
   startRect: WindowRect
+  lastRect: WindowRect
+  activated: boolean
+  rafId: number
+  targetEl: HTMLElement
+  dialogEl: HTMLDialogElement
 }
 
 const STARTERS = [
@@ -46,17 +53,18 @@ const WINDOW_MIN_W = 320
 const WINDOW_MIN_H = 380
 const WINDOW_DEFAULT_W = 410
 const WINDOW_DEFAULT_H = 560
+const DRAG_THRESHOLD_PX = 4
 const KEYBOARD_STEP = 24
 const KEYBOARD_FAST_STEP = 64
 
 const RESIZE_EDGES: ReadonlyArray<{ edge: ResizeEdge; label: string; className: string }> = [
-  { edge: 'n', label: 'Top edge', className: 'inset-x-4 top-0 h-2 cursor-ns-resize' },
-  { edge: 's', label: 'Bottom edge', className: 'left-4 right-6 bottom-0 h-2 cursor-ns-resize' },
-  { edge: 'w', label: 'Left edge', className: 'inset-y-4 left-0 w-2 cursor-ew-resize' },
-  { edge: 'e', label: 'Right edge', className: 'top-4 bottom-6 right-0 w-2 cursor-ew-resize' },
-  { edge: 'nw', label: 'Top-left corner', className: 'top-0 left-0 h-3.5 w-3.5 cursor-nwse-resize' },
-  { edge: 'ne', label: 'Top-right corner', className: 'top-0 right-0 h-3 w-3 cursor-nesw-resize' },
-  { edge: 'sw', label: 'Bottom-left corner', className: 'bottom-0 left-0 h-3.5 w-3.5 cursor-nesw-resize' },
+  { edge: 'n', label: 'Top edge', className: 'five-resize-top inset-x-4 -top-1 h-2.5 cursor-ns-resize' },
+  { edge: 's', label: 'Bottom edge', className: 'left-5 right-7 -bottom-1 h-3 cursor-ns-resize' },
+  { edge: 'w', label: 'Left edge', className: 'inset-y-5 -left-1 w-3 cursor-ew-resize' },
+  { edge: 'e', label: 'Right edge', className: 'top-5 bottom-7 -right-1 w-3 cursor-ew-resize' },
+  { edge: 'nw', label: 'Top-left corner', className: 'five-resize-top -top-1 -left-1 h-4 w-4 cursor-nwse-resize' },
+  { edge: 'ne', label: 'Top-right corner', className: 'five-resize-top -top-1 -right-1 h-4 w-4 cursor-nesw-resize' },
+  { edge: 'sw', label: 'Bottom-left corner', className: '-bottom-1 -left-1 h-5 w-5 cursor-nesw-resize' },
 ]
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -183,7 +191,6 @@ export default function AskFive({
   const [note, setNote] = useState<string | null>(null)
   const [viewport, setViewport] = useState(getViewport)
   const [customRect, setCustomRect] = useState<WindowRect | null>(null)
-  const [dragging, setDragging] = useState(false)
   const [announcement, setAnnouncement] = useState('')
 
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -243,10 +250,19 @@ export default function AskFive({
     stopSpeech()
   }, [stopSpeech])
 
+  const cancelWindowGesture = useCallback(() => {
+    const g = gestureRef.current
+    if (!g) return
+    if (g.rafId) window.cancelAnimationFrame(g.rafId)
+    g.dialogEl.style.transform = ''
+    delete g.dialogEl.dataset.gesturing
+    g.targetEl.classList.remove('is-dragging')
+    gestureRef.current = null
+  }, [])
+
   const closeSession = useCallback(() => {
     requestSeqRef.current += 1
-    gestureRef.current = null
-    setDragging(false)
+    cancelWindowGesture()
     cancelVoiceInput()
     stopSpeech()
     abortRef.current?.abort()
@@ -256,7 +272,7 @@ export default function AskFive({
     setDraft('')
     setNote(null)
     onClose()
-  }, [cancelVoiceInput, onClose, stopSpeech])
+  }, [cancelVoiceInput, cancelWindowGesture, onClose, stopSpeech])
 
   useEffect(() => {
     if (!isWindow) return
@@ -302,21 +318,23 @@ export default function AskFive({
   useEffect(() => {
     if (open) return
     requestSeqRef.current += 1
+    cancelWindowGesture()
     recorderRef.current?.cancel()
     recorderRef.current = null
     stopSpeakRef.current()
     stopSpeakRef.current = () => {}
     abortRef.current?.abort()
     abortRef.current = null
-  }, [open])
+  }, [cancelWindowGesture, open])
 
   useEffect(
     () => () => {
+      cancelWindowGesture()
       recorderRef.current?.cancel()
       stopSpeakRef.current()
       abortRef.current?.abort()
     },
-    [],
+    [cancelWindowGesture],
   )
 
   useEffect(() => {
@@ -498,48 +516,112 @@ export default function AskFive({
     if (!inside) closeSession()
   }
 
+  const applyWindowGestureFrame = useCallback((g: WindowGesture) => {
+    const dx = g.latestX - g.startX
+    const dy = g.latestY - g.startY
+
+    if (!g.activated) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
+      g.activated = true
+      g.dialogEl.dataset.gesturing = 'true'
+      if (g.kind === 'drag') g.targetEl.classList.add('is-dragging')
+    }
+
+    const vp = getViewport()
+    if (g.kind === 'drag') {
+      const next = clampWindowRect(
+        { ...g.startRect, left: g.startRect.left + dx, top: g.startRect.top + dy },
+        vp.w,
+        vp.h,
+      )
+      g.lastRect = next
+      const tx = next.left - g.startRect.left
+      const ty = next.top - g.startRect.top
+      g.dialogEl.style.transform = `translate3d(${tx}px, ${ty}px, 0)`
+      return
+    }
+
+    const next = resizeWindowRect(g.startRect, g.kind, dx, dy, vp.w, vp.h)
+    g.lastRect = next
+    g.dialogEl.style.left = `${next.left}px`
+    g.dialogEl.style.top = `${next.top}px`
+    g.dialogEl.style.width = `${next.width}px`
+    g.dialogEl.style.height = `${next.height}px`
+  }, [])
+
   const startWindowGesture = (kind: 'drag' | ResizeEdge, e: ReactPointerEvent<HTMLElement>) => {
     if (!isWindow) return
     if (e.pointerType === 'mouse' && e.button !== 0) return
+    const dlg = dialogRef.current
+    if (!dlg) return
+
+    cancelWindowGesture()
     gestureRef.current = {
       kind,
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
+      latestX: e.clientX,
+      latestY: e.clientY,
       startRect: currentRect,
+      lastRect: currentRect,
+      activated: false,
+      rafId: 0,
+      targetEl: e.currentTarget,
+      dialogEl: dlg,
     }
-    setDragging(kind === 'drag')
-    e.currentTarget.setPointerCapture(e.pointerId)
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // Ignore if capture is unsupported for this target.
+    }
   }
 
   const moveWindowGesture = (e: ReactPointerEvent<HTMLElement>) => {
     const g = gestureRef.current
     if (!g || g.pointerId !== e.pointerId) return
-    const dx = e.clientX - g.startX
-    const dy = e.clientY - g.startY
-    const next =
-      g.kind === 'drag'
-        ? clampWindowRect(
-            { ...g.startRect, left: g.startRect.left + dx, top: g.startRect.top + dy },
-            viewport.w,
-            viewport.h,
-          )
-        : resizeWindowRect(g.startRect, g.kind, dx, dy, viewport.w, viewport.h)
-    setCustomRect(next)
+    g.latestX = e.clientX
+    g.latestY = e.clientY
+    if (g.rafId !== 0) return
+    g.rafId = window.requestAnimationFrame(() => {
+      g.rafId = 0
+      if (gestureRef.current === g) applyWindowGestureFrame(g)
+    })
   }
 
   const endWindowGesture = (e: ReactPointerEvent<HTMLElement>, release = false) => {
     const g = gestureRef.current
     if (!g || g.pointerId !== e.pointerId) return
-    if (release && e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+    if (e.type === 'pointerup') {
+      g.latestX = e.clientX
+      g.latestY = e.clientY
+    }
+    if (g.rafId) {
+      window.cancelAnimationFrame(g.rafId)
+      g.rafId = 0
+    }
+    if (g.activated || Math.hypot(g.latestX - g.startX, g.latestY - g.startY) >= DRAG_THRESHOLD_PX) {
+      applyWindowGestureFrame(g)
+    }
+    if (release && g.targetEl.hasPointerCapture?.(e.pointerId)) {
       try {
-        e.currentTarget.releasePointerCapture(e.pointerId)
+        g.targetEl.releasePointerCapture(e.pointerId)
       } catch {
         // Ignore if capture already ended.
       }
     }
+    // Sync final coordinates synchronously before clearing transform so release never flashes back for a frame.
+    if (g.activated) {
+      g.dialogEl.style.left = `${g.lastRect.left}px`
+      g.dialogEl.style.top = `${g.lastRect.top}px`
+      g.dialogEl.style.width = `${g.lastRect.width}px`
+      g.dialogEl.style.height = `${g.lastRect.height}px`
+    }
+    g.dialogEl.style.transform = ''
+    delete g.dialogEl.dataset.gesturing
+    g.targetEl.classList.remove('is-dragging')
     gestureRef.current = null
-    setDragging(false)
+    if (g.activated) setCustomRect(g.lastRect)
   }
 
   const handleDragKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
@@ -553,7 +635,9 @@ export default function AskFive({
       viewport.h,
     )
     setCustomRect(next)
-    setAnnouncement(`Five window moved to ${next.left}, ${next.top}.`)
+    const vert = delta.dy < 0 ? 'up' : delta.dy > 0 ? 'down' : ''
+    const horiz = delta.dx < 0 ? 'left' : delta.dx > 0 ? 'right' : ''
+    setAnnouncement(`Five window moved ${vert || horiz}.`)
   }
 
   const handleResizeKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
@@ -668,8 +752,12 @@ export default function AskFive({
           </span>
         )}
 
-        {/* Header: draggable + keyboard-movable bar in floating window mode */}
-        <header className="flex items-center gap-2 border-b border-[var(--line)] px-4 py-3 sm:px-5 sm:py-3.5">
+        {/* Header: full-edge draggable + keyboard-movable bar in floating window mode */}
+        <header
+          className={`flex items-center border-b border-[var(--line)] ${
+            isWindow ? 'gap-1 pr-3 sm:pr-4' : 'gap-2 px-5 py-3.5'
+          }`}
+        >
           {isWindow ? (
             <div
               onPointerDown={(e) => startWindowGesture('drag', e)}
@@ -677,9 +765,7 @@ export default function AskFive({
               onPointerUp={(e) => endWindowGesture(e, true)}
               onPointerCancel={(e) => endWindowGesture(e, true)}
               onLostPointerCapture={(e) => endWindowGesture(e)}
-              className={`five-drag-handle flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-0.5 pr-1 ${
-                dragging ? 'is-dragging' : ''
-              }`}
+              className="five-drag-handle flex min-w-0 flex-1 items-center gap-2.5 py-3 pr-2 pl-4 sm:py-3.5 sm:pl-5"
             >
               <button
                 type="button"
@@ -707,7 +793,7 @@ export default function AskFive({
             type="button"
             onClick={closeSession}
             aria-label="Close"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[var(--ink-2)] transition-colors duration-150 hover:bg-[var(--card-2)] hover:text-[var(--ink)]"
+            className="grid h-9 w-9 shrink-0 touch-manipulation place-items-center rounded-full text-[var(--ink-2)] transition-colors duration-150 hover:bg-[var(--card-2)] hover:text-[var(--ink)]"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
               <path d="M4 4l8 8M12 4l-8 8" />
@@ -845,7 +931,7 @@ export default function AskFive({
             void sendText(draft)
           }}
           className={`flex items-center gap-2 border-t border-[var(--line)] ${
-            isWindow ? 'py-3 pr-4 pb-3.5 pl-3' : 'p-3'
+            isWindow ? 'py-3 pr-5 pb-4 pl-3' : 'p-3'
           }`}
         >
           {listening ? (
@@ -998,7 +1084,7 @@ export default function AskFive({
             onLostPointerCapture={(e) => endWindowGesture(e)}
             aria-label="Resize Five window. Use arrow keys to resize."
             title="Drag or use arrow keys to resize window"
-            className="five-resize-handle absolute right-0 bottom-0 z-20 flex h-5 w-5 cursor-nwse-resize items-end justify-end rounded-br-[28px] pr-2 pb-2 text-[var(--ink-2)]/65 transition-colors duration-150 hover:text-[var(--ink)]"
+            className="five-resize-handle absolute right-0 bottom-0 z-20 flex h-6 w-6 cursor-nwse-resize items-end justify-end rounded-br-[28px] pr-2 pb-2 text-[var(--ink-2)]/65 transition-colors duration-150 hover:text-[var(--ink)]"
           >
             <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden>
               <path d="M8 2.5L2.5 8M8 6L6 8" />

@@ -177,14 +177,25 @@ input[type="range"] { accent-color: var(--accent); }
     margin: 0;
     inset: auto;
     overflow: visible;
+    overscroll-behavior: contain;
   }
   dialog.five-dialog.is-window:is([open], :popover-open, .\:popover-open) {
     display: flex;
     flex-direction: column;
     animation: five-dialog-in 220ms cubic-bezier(0.23, 1, 0.32, 1);
   }
+  dialog.five-dialog.is-window[data-gesturing="true"] {
+    animation: none;
+    will-change: transform, left, top, width, height;
+  }
   dialog.five-dialog .five-drag-handle {
     cursor: grab;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  dialog.five-dialog .five-drag-handle * {
     touch-action: none;
     -webkit-user-select: none;
     user-select: none;
@@ -196,6 +207,12 @@ input[type="range"] { accent-color: var(--accent); }
     touch-action: none;
     -webkit-user-select: none;
     user-select: none;
+    -webkit-touch-callout: none;
+  }
+  @media (pointer: coarse) {
+    dialog.five-dialog .five-resize-top {
+      display: none;
+    }
   }
 }
 
