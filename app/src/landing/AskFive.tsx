@@ -173,6 +173,7 @@ export default function AskFive({
   const [turns, setTurns] = useState<FiveTurn[]>([])
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
+  const [pendingVoice, setPendingVoice] = useState(false)
   const [listening, setListening] = useState(false)
   const [listenSeconds, setListenSeconds] = useState(0)
   const [preparingSpeech, setPreparingSpeech] = useState(false)
@@ -193,7 +194,6 @@ export default function AskFive({
   const abortRef = useRef<AbortController | null>(null)
   const interactionIdRef = useRef<string | undefined>(undefined)
   const requestSeqRef = useRef(0)
-  const listenDurationRef = useRef(0)
   const gestureRef = useRef<WindowGesture | null>(null)
 
   const openRef = useRef(open)
@@ -213,7 +213,6 @@ export default function AskFive({
   useEffect(() => {
     if (!listening) return
     const id = window.setInterval(() => {
-      listenDurationRef.current += 1
       setListenSeconds((s) => s + 1)
     }, 1000)
     return () => window.clearInterval(id)
@@ -232,7 +231,6 @@ export default function AskFive({
     recorderRef.current = null
     setListening(false)
     setListenSeconds(0)
-    listenDurationRef.current = 0
     setAudioEnergy(0)
   }, [])
 
@@ -240,6 +238,7 @@ export default function AskFive({
     requestSeqRef.current += 1
     abortRef.current?.abort()
     abortRef.current = null
+    setPendingVoice(false)
     setBusy(false)
     stopSpeech()
   }, [stopSpeech])
@@ -252,6 +251,7 @@ export default function AskFive({
     stopSpeech()
     abortRef.current?.abort()
     abortRef.current = null
+    setPendingVoice(false)
     setBusy(false)
     setDraft('')
     setNote(null)
@@ -324,7 +324,7 @@ export default function AskFive({
       top: listRef.current.scrollHeight,
       behavior: reduce ? 'auto' : 'smooth',
     })
-  }, [turns, busy, reduce])
+  }, [turns, busy, pendingVoice, reduce])
 
   const speakReply = useCallback(
     (text: string) => {
@@ -386,7 +386,7 @@ export default function AskFive({
   )
 
   const sendAudio = useCallback(
-    async (audioBlob: Blob, durationSec: number) => {
+    async (audioBlob: Blob) => {
       if (busyRef.current) return
       if (audioBlob.size < 256) {
         setNote('Hold the mic briefly while speaking, then tap send.')
@@ -395,9 +395,8 @@ export default function AskFive({
       setNote(null)
       stopSpeech()
 
-      const label = durationSec > 0 ? `Voice message (${formatSeconds(durationSec)})` : 'Voice message'
       const prevTurns = turns
-      setTurns([...prevTurns, { role: 'user', text: label }])
+      setPendingVoice(true)
       setBusy(true)
       const seq = ++requestSeqRef.current
       abortRef.current?.abort()
@@ -410,22 +409,31 @@ export default function AskFive({
           signal: controller.signal,
         })
         if (seq !== requestSeqRef.current) return
-        if (res.interactionId) interactionIdRef.current = res.interactionId
-        setTurns((cur) => [...cur, { role: 'five', text: res.answer }])
+        interactionIdRef.current = res.interactionId
+        const spoken = res.transcript?.trim() ?? ''
+        setPendingVoice(false)
         setBusy(false)
+        setTurns((cur) =>
+          spoken
+            ? [...cur, { role: 'user', text: spoken }, { role: 'five', text: res.answer }]
+            : [...cur, { role: 'five', text: res.answer }],
+        )
         speakReply(res.answer)
       } catch (err) {
         if ((err as Error).name === 'AbortError' || seq !== requestSeqRef.current) return
         console.warn('Voice request failed:', err)
         setNote('Five couldn’t process that voice message. Try again or type below.')
       } finally {
-        if (seq === requestSeqRef.current) setBusy(false)
+        if (seq === requestSeqRef.current) {
+          setPendingVoice(false)
+          setBusy(false)
+        }
       }
     },
     [speakReply, stopSpeech, turns],
   )
 
-  const sendAudioRef = useRef<(audio: Blob, durationSec: number) => Promise<void>>(NOOP_AUDIO_SEND)
+  const sendAudioRef = useRef<(audio: Blob) => Promise<void>>(NOOP_AUDIO_SEND)
   useEffect(() => {
     sendAudioRef.current = sendAudio
   }, [sendAudio])
@@ -438,30 +446,25 @@ export default function AskFive({
     setNote(null)
     stopSpeech()
     recorderRef.current?.cancel()
-    listenDurationRef.current = 0
     setListenSeconds(0)
     setListening(true)
 
     recorderRef.current = startVoiceRecorder({
       onReady: () => {
-        listenDurationRef.current = 0
         setListenSeconds(0)
       },
       onEnergy: (level) => setAudioEnergy(level),
       onStop: (blob) => {
-        const secs = listenDurationRef.current
         recorderRef.current = null
         setListening(false)
         setListenSeconds(0)
-        listenDurationRef.current = 0
         setAudioEnergy(0)
-        void sendAudioRef.current(blob, secs)
+        void sendAudioRef.current(blob)
       },
       onError: (msg) => {
         recorderRef.current = null
         setListening(false)
         setListenSeconds(0)
-        listenDurationRef.current = 0
         setAudioEnergy(0)
         setNote(msg)
       },
@@ -589,13 +592,15 @@ export default function AskFive({
 
   const statusText = listening
     ? 'Listening… speak now'
-    : busy
-      ? 'Thinking…'
-      : preparingSpeech
-        ? 'Preparing voice…'
-        : speaking
-          ? 'Speaking…'
-          : 'Ask about the Moon, sites, or Gnomon'
+    : pendingVoice
+      ? 'Transcribing speech…'
+      : busy
+        ? 'Thinking…'
+        : preparingSpeech
+          ? 'Preparing voice…'
+          : speaking
+            ? 'Speaking…'
+            : 'Ask about the Moon, sites, or Gnomon'
 
   const statusDotClass =
     listening || speaking
@@ -759,7 +764,7 @@ export default function AskFive({
           }`}
           aria-live="polite"
         >
-          {!turns.length && (
+          {!turns.length && !pendingVoice && (
             <div className="space-y-3">
               <p className="max-w-[90%] rounded-[18px] rounded-tl-[6px] bg-[var(--card-2)] px-4 py-3 text-[14.5px] font-medium leading-snug">
                 Hi, I’m Five — Gnomon’s Moon guide. Ask me by voice or type a question below.
@@ -793,7 +798,24 @@ export default function AskFive({
             </div>
           ))}
 
-          {busy && (
+          {pendingVoice && (
+            <div className="flex flex-col items-end">
+              <p
+                className="inline-flex items-center gap-1.5 rounded-[18px] rounded-tr-[6px] bg-[var(--ink)] px-4 py-3.5 text-[var(--on-ink)]"
+                aria-label="Transcribing your spoken message"
+              >
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="lnd-typing h-1.5 w-1.5 rounded-full bg-current opacity-85"
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  />
+                ))}
+              </p>
+            </div>
+          )}
+
+          {busy && !pendingVoice && (
             <p className="inline-flex items-center gap-1.5 rounded-[18px] rounded-tl-[6px] bg-[var(--card-2)] px-4 py-3.5" aria-label="Five is thinking">
               {[0, 1, 2].map((i) => (
                 <span

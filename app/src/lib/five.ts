@@ -11,7 +11,40 @@ export type FiveTurn = { role: 'user' | 'five'; text: string }
 
 export type AskFiveResult = {
   answer: string
+  transcript?: string
   interactionId?: string
+}
+
+type InteractionOptions = {
+  previousInteractionId?: string
+  signal?: AbortSignal
+  responseFormat?: {
+    type: 'text'
+    mime_type: 'application/json'
+    schema: { [k: string]: unknown }
+  }
+  maxOutputTokens?: number
+}
+
+const AUDIO_REPLY_FORMAT = {
+  type: 'text' as const,
+  mime_type: 'application/json' as const,
+  schema: {
+    type: 'object',
+    properties: {
+      transcript: {
+        type: 'string',
+        description:
+          'Exact verbatim transcript of what the user spoke in the audio, punctuated naturally. Empty string if no speech was heard.',
+      },
+      answer: {
+        type: 'string',
+        description:
+          'Five’s concise, conversational response grounded only in the Gnomon website information.',
+      },
+    },
+    required: ['transcript', 'answer'],
+  },
 }
 
 const SYSTEM_PROMPT = fiveSystemPrompt.trim()
@@ -107,7 +140,7 @@ async function waitAbortable(ms: number, signal?: AbortSignal): Promise<void> {
 
 async function runModelInteraction(
   buildInput: (withHistory: boolean) => Parameters<GoogleGenAI['interactions']['create']>[0]['input'],
-  options?: { previousInteractionId?: string; signal?: AbortSignal },
+  options?: InteractionOptions,
 ): Promise<AskFiveResult> {
   const ai = getGeminiClient()
   if (!ai) {
@@ -127,9 +160,10 @@ async function runModelInteraction(
         ...(usePrevId && options?.previousInteractionId
           ? { previous_interaction_id: options.previousInteractionId }
           : {}),
+        ...(options?.responseFormat ? { response_format: options.responseFormat } : {}),
         generation_config: {
           thinking_level: GEMINI_MODEL.includes('3.8') ? 'low' : 'minimal',
-          max_output_tokens: 450,
+          max_output_tokens: options?.maxOutputTokens ?? 450,
         },
       },
       options?.signal ? { signal: options.signal } : undefined,
@@ -202,13 +236,43 @@ function normalizeAudioMime(rawMime: string): string {
   return base
 }
 
+function parseAudioReply(raw: string): { transcript: string; answer: string } {
+  const stripped = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+  try {
+    const parsed = JSON.parse(stripped) as { transcript?: unknown; answer?: unknown }
+    const transcript = typeof parsed.transcript === 'string' ? parsed.transcript.trim() : ''
+    const answer = typeof parsed.answer === 'string' ? parsed.answer.trim() : ''
+    if (answer || transcript) {
+      return {
+        transcript,
+        answer: answer || 'I didn’t catch a question there — try speaking again or type below.',
+      }
+    }
+  } catch {
+    // Fall back to plain text if output was not valid JSON.
+  }
+  return { transcript: '', answer: raw.trim() }
+}
+
 export async function askFiveAudio(
   audioBlob: Blob,
   history: FiveTurn[],
   options?: { previousInteractionId?: string; signal?: AbortSignal },
 ): Promise<AskFiveResult> {
   if (CUSTOM_API_URL) {
-    return askFive('(Voice message)', history, options)
+    return askFive('Voice question', history, options)
+  }
+
+  if (!getGeminiClient()) {
+    await waitAbortable(260, options?.signal)
+    return {
+      transcript: '',
+      answer:
+        'Sorry, I can’t process voice questions right now. Please try again shortly or type below.',
+    }
   }
 
   const base64 = await blobToBase64(audioBlob)
@@ -216,22 +280,35 @@ export async function askFiveAudio(
 
   const mimeType = normalizeAudioMime(audioBlob.type)
   const contextPrefix = formatHistoryContext(history)
+  const basePrompt =
+    'Listen carefully to the user audio (a question about Gnomon). Transcribe the exact spoken words verbatim into `transcript` (use an empty string if silent or unintelligible), and provide Five’s direct answer in `answer`.'
 
-  return runModelInteraction((withHistory) => {
-    const prompt =
-      withHistory && contextPrefix
-        ? `${contextPrefix}\n\nListen to my spoken question in the audio and answer directly as Five.`
-        : 'Listen to my spoken question in the audio and answer directly as Five.'
-    return [
-      {
-        type: 'user_input',
-        content: [
-          { type: 'audio', data: base64, mime_type: mimeType },
-          { type: 'text', text: prompt },
-        ],
-      },
-    ]
-  }, options)
+  const raw = await runModelInteraction(
+    (withHistory) => {
+      const prompt = withHistory && contextPrefix ? `${contextPrefix}\n\n${basePrompt}` : basePrompt
+      return [
+        {
+          type: 'user_input',
+          content: [
+            { type: 'audio', data: base64, mime_type: mimeType },
+            { type: 'text', text: prompt },
+          ],
+        },
+      ]
+    },
+    {
+      ...options,
+      responseFormat: AUDIO_REPLY_FORMAT,
+      maxOutputTokens: 700,
+    },
+  )
+
+  const parsed = parseAudioReply(raw.answer)
+  // Reset server interaction chaining after structured JSON output so later plain-text turns stay plain text.
+  return {
+    transcript: parsed.transcript,
+    answer: parsed.answer,
+  }
 }
 
 /* ---------- Voice I/O: MediaRecorder mic capture + ElevenLabs TTS ---------- */
