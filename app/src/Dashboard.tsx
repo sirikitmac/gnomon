@@ -621,13 +621,6 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                 {/* Middle Unobstructed Map Viewport */}
                 <div ref={middleRef} className="pointer-events-none relative min-h-0 flex-1">
                   <MoonModeSwitch value={moonMode} onChange={setMoonMode} />
-                  {moonMode === 'globe' && (
-                    <div className="pointer-events-none absolute bottom-3 left-8 flex flex-wrap gap-4 text-xs text-[#b3ac9f]">
-                      <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#3ddc97]" />Landing site</span>
-                      <span title="Earth and Sun are shown at their true sizes and directions from Horizons. Earth is at its real distance; the Sun is drawn closer but at its true apparent size. Earth's turn and cloud cover are illustrative.">Earth and Sun to scale</span>
-                      <span className="max-xl:hidden">Drag to turn the Moon, scroll to zoom</span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Bottom Full-Edged Collapsible Timeline Bar */}
@@ -663,8 +656,7 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
                   {bottomOpen && (
                     <section id="timeline" className="border-t border-line bg-surface/92 px-4 py-3 shadow-pop backdrop-blur-2xl backdrop-saturate-150">
                       <header className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                        <h2 className="font-display text-[15px] font-semibold">Timeline</h2>
-                        <span className="text-xs text-ink-3">Drag to move the landing. Solid box: mission. Dashed box: delayed landing.</span>
+                        <h2 className="font-display text-[15px] font-semibold" title="Drag the box to move the landing. Solid box: mission. Dashed box: delayed landing.">Timeline</h2>
                       </header>
                       <Timeline ds={ds} site={site} mission={mission} cursor={cur} onLanding={setLanding} onCursor={setCursor} />
                       <label className="mt-3 flex items-center gap-3 text-sm text-ink-2">

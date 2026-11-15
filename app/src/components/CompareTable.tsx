@@ -220,7 +220,6 @@ export default function CompareTable({ ds, mission, ids, selectedId, onSelect, o
                   <td className="rounded-l-[10px] px-3 py-3.5">
                     <div className="flex items-center gap-2 text-[14px] font-semibold">
                       {site.name}
-                      {active && <span className="rounded-full bg-accent px-2 py-0.5 text-[10.5px] font-bold text-on-accent">Your site</span>}
                     </div>
                     <div className="mt-0.5 text-xs text-ink-3">{shortNote(site)}</div>
                   </td>

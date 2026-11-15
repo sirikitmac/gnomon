@@ -266,7 +266,6 @@ function Nav({ onOpen, askOpen, onAskFive }: { onOpen: () => void; askOpen: bool
             onClick={(e) => { if (e.metaKey || e.ctrlKey || e.button !== 0) return; e.preventDefault(); onOpen() }}
             className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full bg-[var(--ink)] px-4 text-[14px] font-semibold tracking-[-0.02em] text-[var(--on-ink)] transition-transform duration-150 active:scale-[0.97] sm:px-5"
           >
-            <span className="hidden h-2 w-2 rounded-full bg-[var(--sun)] min-[400px]:block" aria-hidden />
             Launch app
           </a>
         </div>
@@ -360,7 +359,6 @@ function Hero({ onOpen, reduce }: { onOpen: () => void; reduce: boolean }) {
 
           {/* Scroll hint */}
           <motion.div style={{ opacity: hintOpacity }} className="pointer-events-none absolute left-1/2 top-24 hidden -translate-x-1/2 items-center gap-2 text-[12.5px] font-semibold tracking-[-0.01em] text-[#fffdf6]/60 lg:flex">
-            <span className="hint-dot h-2 w-2 rounded-full bg-[var(--sun)]" aria-hidden />
             Scroll to move the Sun
           </motion.div>
 

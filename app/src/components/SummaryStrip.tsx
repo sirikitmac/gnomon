@@ -47,17 +47,12 @@ export default function SummaryStrip({ ds, a: full, slipped, slipDays, needComms
             key={a.verdict}
             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-            className={`shrink-0 rounded-xl px-3.5 py-2 font-display text-xl font-semibold ${vStyle[a.verdict]}`}
+            title={`Screening verdict from the team's own defaults, not NASA criteria: GO = need met ${SCREEN.goCoverage}%+ of the mission with no gap over ${SCREEN.goGapH} h; RISKY = ${SCREEN.riskyCoverage}%+ and gaps up to ${SCREEN.riskyGapH} h. For a decision, use the Power check with your lander's numbers.`}
+            className={`shrink-0 cursor-help rounded-xl px-3.5 py-2 font-display text-xl font-semibold ${vStyle[a.verdict]}`}
           >
             {a.verdict}
           </motion.div>
         </AnimatePresence>
-          <span
-            className="cursor-help text-[10px] font-medium text-ink-3 underline decoration-dotted underline-offset-2"
-            title={`Screening verdict from the team's own defaults, not NASA criteria: GO = need met ${SCREEN.goCoverage}%+ of the mission with no gap over ${SCREEN.goGapH} h; RISKY = ${SCREEN.riskyCoverage}%+ and gaps up to ${SCREEN.riskyGapH} h. For a decision, use the Power check with your lander's numbers.`}
-          >
-            Screening
-          </span>
         </div>
         <div className="min-w-0">
           <div className="text-xs text-ink-3">{needComms ? 'Power and comms' : 'Power'} window after landing</div>

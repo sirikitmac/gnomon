@@ -2,15 +2,6 @@ import { motion } from 'framer-motion'
 import { isOriginal } from '../lib/compare'
 import type { Site } from '../lib/types'
 
-const roleDot: Record<string, string> = {
-  Power: 'bg-sun',
-  Comms: 'bg-earth',
-  'Science trade-off': 'bg-risk',
-  'Real mission': 'bg-both',
-  Contrast: 'bg-ink-3',
-  'Artemis candidate': 'bg-[#8a6bd1]',
-}
-
 export default function SitePicker({ sites, value, onChange }: { sites: Site[]; value: string; onChange: (id: string) => void }) {
   const original = sites.filter(isOriginal)
   const more = sites.filter((s) => !isOriginal(s))
@@ -48,10 +39,6 @@ function SiteList({ sites, value, onChange }: { sites: Site[]; value: string; on
             )}
             <span className="relative flex items-center justify-between gap-2">
               <span className="truncate text-[13px] font-medium">{s.name}</span>
-              <span className={`flex shrink-0 items-center gap-1.5 text-[11px] ${active ? 'text-on-accent/80' : 'text-ink-3'}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-on-accent' : roleDot[s.role] ?? 'bg-ink-3'}`} />
-                {s.role}
-              </span>
             </span>
             <span className={`relative mt-0.5 block text-[11px] tabular ${active ? 'text-on-accent/70' : 'text-ink-3'}`}>
               {Math.abs(s.lat).toFixed(1)}°{s.lat < 0 ? 'S' : 'N'} · {Math.abs(s.lonEast).toFixed(1)}°{s.lonEast < 0 ? 'W' : 'E'}
