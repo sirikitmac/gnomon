@@ -1,101 +1,574 @@
 /**
- * Ask Five: the connection point for the assistant behind the "Ask Five" window on the landing page.
+ * Five: Gemini interactions + ElevenLabs TTS + MediaRecorder audio capture.
  *
- * FOR THE BACKEND (Jiandale): set VITE_FIVE_API_URL (e.g. in .env.local or the Vercel project
- * settings) to an endpoint that accepts
- *     POST { question: string, history: { role: 'user' | 'five', text: string }[] }
- * and returns
- *     200 { answer: string }
- * Nothing else in the app needs to change. Until the variable is set, askFive() answers with a
- * placeholder so the window can be designed and tested.
- *
- * Voice uses the browser's own speech services for now (no key needed): speech-to-text through the
- * Web Speech API where the browser has it (Chrome, Edge, Safari), and text-to-speech through
- * speechSynthesis. To use a hosted voice service instead, replace startListening() / speak() here.
+ * System prompt lives in `five-ai.md` at the project root.
  */
+
+import { GoogleGenAI } from '@google/genai'
+import fiveSystemPrompt from '../../../five-ai.md?raw'
 
 export type FiveTurn = { role: 'user' | 'five'; text: string }
 
-const API_URL: string | undefined = import.meta.env.VITE_FIVE_API_URL
+export type AskFiveResult = {
+  answer: string
+  interactionId?: string
+}
 
-/** True once a backend is configured. */
-export const FIVE_API_READY = Boolean(API_URL)
+const SYSTEM_PROMPT = fiveSystemPrompt.trim()
 
-export async function askFive(question: string, history: FiveTurn[], signal?: AbortSignal): Promise<string> {
-  if (!API_URL) {
-    await new Promise((r) => setTimeout(r, 700))
-    return 'I can’t answer questions yet: my connection is still being built. In the meantime, open the app to check any site and date.'
+const cleanEnv = (v: string | undefined) => (v ?? '').trim()
+const isPlaceholder = (v: string) => !v || v.startsWith('your_')
+
+const RAW_GEMINI_KEY = cleanEnv(import.meta.env.VITE_GEMINI_API_KEY)
+const GEMINI_KEY = isPlaceholder(RAW_GEMINI_KEY) ? '' : RAW_GEMINI_KEY
+const GEMINI_MODEL = cleanEnv(import.meta.env.VITE_GEMINI_MODEL) || 'gemini-3.5-flash-lite'
+
+const RAW_ELEVEN_KEY = cleanEnv(import.meta.env.VITE_ELEVENLABS_API_KEY)
+const ELEVEN_KEY = isPlaceholder(RAW_ELEVEN_KEY) ? '' : RAW_ELEVEN_KEY
+const ELEVEN_VOICE_ID = cleanEnv(import.meta.env.VITE_ELEVENLABS_VOICE_ID) || 'rBkiq5ZQ43ogwd6i4uIQ'
+const ELEVEN_MODEL_ID = cleanEnv(import.meta.env.VITE_ELEVENLABS_MODEL_ID) || 'eleven_flash_v2_5'
+
+const CUSTOM_API_URL = cleanEnv(import.meta.env.VITE_FIVE_API_URL)
+
+export const GEMINI_READY = Boolean(GEMINI_KEY)
+export const ELEVENLABS_READY = Boolean(ELEVEN_KEY)
+export const FIVE_API_READY = Boolean(GEMINI_KEY || CUSTOM_API_URL)
+
+let geminiClient: GoogleGenAI | null = null
+const getGeminiClient = () => {
+  if (!GEMINI_KEY) return null
+  if (!geminiClient) geminiClient = new GoogleGenAI({ apiKey: GEMINI_KEY })
+  return geminiClient
+}
+
+function extractInteractionText(interaction: { output_text?: string; outputs?: unknown[] }): string {
+  if (typeof interaction.output_text === 'string' && interaction.output_text.trim()) {
+    return interaction.output_text.trim()
   }
-  const r = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, history }),
-    signal,
+  if (Array.isArray(interaction.outputs)) {
+    const parts = interaction.outputs
+      .map((item) =>
+        typeof item === 'object' && item !== null && 'text' in item && typeof item.text === 'string'
+          ? item.text
+          : '',
+      )
+      .filter(Boolean)
+    if (parts.length) return parts.join('\n').trim()
+  }
+  return ''
+}
+
+function formatHistoryContext(history: FiveTurn[]): string {
+  if (!history.length) return ''
+  const recent = history
+    .slice(-8)
+    .map((t) => `${t.role === 'user' ? 'User' : 'Five'}: ${t.text}`)
+    .join('\n')
+  return `Previous conversation:\n${recent}`
+}
+
+async function waitAbortable(ms: number, signal?: AbortSignal): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const id = window.setTimeout(resolve, ms)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        window.clearTimeout(id)
+        reject(new DOMException('Aborted', 'AbortError'))
+      },
+      { once: true },
+    )
   })
-  if (!r.ok) throw new Error(`Five’s service answered ${r.status}`)
-  const data = (await r.json()) as { answer?: unknown }
-  if (typeof data.answer !== 'string' || !data.answer.trim()) throw new Error('Five’s service sent no answer')
-  return data.answer.trim()
 }
 
-/* ---------- voice ---------- */
+async function runModelInteraction(
+  buildInput: (withHistory: boolean) => Parameters<GoogleGenAI['interactions']['create']>[0]['input'],
+  options?: { previousInteractionId?: string; signal?: AbortSignal },
+): Promise<AskFiveResult> {
+  const ai = getGeminiClient()
+  if (!ai) {
+    await waitAbortable(260, options?.signal)
+    return {
+      answer:
+        'Sorry, I can’t answer live questions right now. Please try again shortly or explore the sites and tools in Gnomon.',
+    }
+  }
 
-type Recognition = {
-  lang: string
-  interimResults: boolean
-  continuous: boolean
-  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null
-  onerror: ((e: { error: string }) => void) | null
-  onend: (() => void) | null
-  start: () => void
+  const call = (usePrevId: boolean) =>
+    ai.interactions.create(
+      {
+        model: GEMINI_MODEL,
+        input: buildInput(!usePrevId),
+        system_instruction: SYSTEM_PROMPT,
+        ...(usePrevId && options?.previousInteractionId
+          ? { previous_interaction_id: options.previousInteractionId }
+          : {}),
+        generation_config: {
+          thinking_level: GEMINI_MODEL.includes('3.8') ? 'low' : 'minimal',
+          max_output_tokens: 350,
+        },
+      },
+      options?.signal ? { signal: options.signal } : undefined,
+    )
+
+  let interaction
+  try {
+    interaction = await call(Boolean(options?.previousInteractionId))
+  } catch (err) {
+    if ((err as Error).name === 'AbortError' || !options?.previousInteractionId) throw err
+    interaction = await call(false)
+  }
+
+  const answer = extractInteractionText(interaction)
+  if (!answer) throw new Error('No reply text returned.')
+
+  return {
+    answer,
+    interactionId: interaction.id,
+  }
+}
+
+export async function askFive(
+  question: string,
+  history: FiveTurn[],
+  options?: { previousInteractionId?: string; signal?: AbortSignal },
+): Promise<AskFiveResult> {
+  if (CUSTOM_API_URL) {
+    const r = await fetch(CUSTOM_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, history }),
+      signal: options?.signal,
+    })
+    if (!r.ok) throw new Error(`Five’s service answered ${r.status}`)
+    const data = (await r.json()) as { answer?: unknown; interactionId?: unknown }
+    if (typeof data.answer !== 'string' || !data.answer.trim()) {
+      throw new Error('Five’s service sent no answer')
+    }
+    return {
+      answer: data.answer.trim(),
+      interactionId: typeof data.interactionId === 'string' ? data.interactionId : undefined,
+    }
+  }
+
+  const contextPrefix = formatHistoryContext(history)
+  return runModelInteraction(
+    (withHistory) => (withHistory && contextPrefix ? `${contextPrefix}\n\nUser: ${question}` : question),
+    options,
+  )
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const result = typeof reader.result === 'string' ? reader.result : ''
+      const comma = result.indexOf(',')
+      resolve(comma >= 0 ? result.slice(comma + 1) : '')
+    }
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to encode audio'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+function normalizeAudioMime(rawMime: string): string {
+  const base = rawMime.split(';')[0]?.trim().toLowerCase() || 'audio/webm'
+  if (base === 'audio/wave' || base === 'audio/x-wav') return 'audio/wav'
+  return base
+}
+
+export async function askFiveAudio(
+  audioBlob: Blob,
+  history: FiveTurn[],
+  options?: { previousInteractionId?: string; signal?: AbortSignal },
+): Promise<AskFiveResult> {
+  if (CUSTOM_API_URL) {
+    return askFive('(Voice message)', history, options)
+  }
+
+  const base64 = await blobToBase64(audioBlob)
+  const mimeType = normalizeAudioMime(audioBlob.type)
+  const contextPrefix = formatHistoryContext(history)
+
+  return runModelInteraction((withHistory) => {
+    const prompt =
+      withHistory && contextPrefix
+        ? `${contextPrefix}\n\nListen to my spoken question in the audio and answer directly as Five.`
+        : 'Listen to my spoken question in the audio and answer directly as Five.'
+    return [
+      { type: 'audio', data: base64, mime_type: mimeType },
+      { type: 'text', text: prompt },
+    ]
+  }, options)
+}
+
+/* ---------- Voice I/O: MediaRecorder mic capture + ElevenLabs TTS ---------- */
+
+const RECORDER_MIMES = [
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/ogg;codecs=opus',
+  'audio/ogg',
+  'audio/mp4',
+]
+
+export const canListen = () =>
+  typeof navigator !== 'undefined' &&
+  Boolean(navigator.mediaDevices?.getUserMedia) &&
+  typeof MediaRecorder !== 'undefined'
+
+export const canSpeak = () =>
+  ELEVENLABS_READY || (typeof window !== 'undefined' && 'speechSynthesis' in window)
+
+export type VoiceRecorderHandle = {
   stop: () => void
-  abort: () => void
+  cancel: () => void
 }
-
-function recognitionCtor(): (new () => Recognition) | null {
-  if (typeof window === 'undefined') return null
-  const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
-}
-
-export const canListen = () => recognitionCtor() !== null
-export const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window
 
 /**
- * Listen for one question. Calls onText with the words so far, onDone with the final text (empty
- * if nothing was heard) and onError with a short message. Returns a function that stops listening.
+ * Record user speech with MediaRecorder + Web Audio input energy metering.
+ * Unlike Web SpeechRecognition on Linux/Chromium, stays active until stop() or cancel().
  */
-export function startListening(handlers: { onText: (t: string) => void; onDone: (t: string) => void; onError: (msg: string) => void }): () => void {
-  const Ctor = recognitionCtor()
-  if (!Ctor) {
-    handlers.onError('Voice input isn’t available in this browser. Type your question instead.')
-    return () => {}
+export function startVoiceRecorder(handlers: {
+  onReady?: () => void
+  onEnergy?: (level: number) => void
+  onStop: (audio: Blob) => void
+  onError: (msg: string) => void
+}): VoiceRecorderHandle {
+  if (!canListen()) {
+    handlers.onError('Voice input isn’t supported in this browser — you can type below.')
+    return { stop: () => {}, cancel: () => {} }
   }
-  const rec = new Ctor()
-  rec.lang = 'en-US'
-  rec.interimResults = true
-  rec.continuous = false
-  let text = ''
-  rec.onresult = (e) => {
-    text = Array.from(e.results).map((r) => r[0].transcript).join(' ').trim()
-    handlers.onText(text)
+
+  let cancelled = false
+  let stopped = false
+  let stream: MediaStream | null = null
+  let recorder: MediaRecorder | null = null
+  let audioCtx: AudioContext | null = null
+  let raf = 0
+  const chunks: Blob[] = []
+
+  const cleanup = () => {
+    cancelAnimationFrame(raf)
+    raf = 0
+    if (audioCtx) {
+      void audioCtx.close().catch(() => {})
+      audioCtx = null
+    }
+    if (stream) {
+      for (const track of stream.getTracks()) track.stop()
+      stream = null
+    }
+    handlers.onEnergy?.(0)
   }
-  rec.onerror = (e) => {
-    handlers.onError(e.error === 'not-allowed' ? 'Microphone access was blocked. Allow it in the browser to ask by voice.' : 'Couldn’t hear that. Try again or type your question.')
+
+  const start = async () => {
+    try {
+      const media = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (cancelled) {
+        for (const t of media.getTracks()) t.stop()
+        return
+      }
+      stream = media
+
+      const mimeType =
+        typeof MediaRecorder.isTypeSupported === 'function'
+          ? RECORDER_MIMES.find((m) => MediaRecorder.isTypeSupported(m))
+          : undefined
+      const rec = new MediaRecorder(media, mimeType ? { mimeType } : undefined)
+      recorder = rec
+
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data)
+      }
+      rec.onerror = () => {
+        cleanup()
+        if (!cancelled) handlers.onError('Microphone stopped unexpectedly. Try again or type below.')
+      }
+      rec.onstop = () => {
+        const finalType = rec.mimeType || mimeType || 'audio/webm'
+        cleanup()
+        if (cancelled) return
+        const blob = new Blob(chunks, { type: finalType })
+        handlers.onStop(blob)
+      }
+
+      // Live microphone amplitude metering (non-blocking)
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        if (AudioCtx) {
+          const ctx = new AudioCtx()
+          audioCtx = ctx
+          const src = ctx.createMediaStreamSource(media)
+          const analyser = ctx.createAnalyser()
+          analyser.fftSize = 256
+          src.connect(analyser)
+          void ctx.resume().catch(() => {})
+
+          const bins = new Uint8Array(analyser.frequencyBinCount)
+          const meter = () => {
+            if (cancelled || stopped) return
+            analyser.getByteFrequencyData(bins)
+            let sum = 0
+            const count = Math.min(bins.length, 32)
+            for (let i = 0; i < count; i++) sum += bins[i]
+            handlers.onEnergy?.(Math.min(1, sum / (count * 120)))
+            raf = requestAnimationFrame(meter)
+          }
+          raf = requestAnimationFrame(meter)
+        }
+      } catch {
+        /* visual metering is optional */
+      }
+
+      if (stopped) {
+        cleanup()
+        return
+      }
+
+      rec.start(150)
+      handlers.onReady?.()
+    } catch (err) {
+      cleanup()
+      if (cancelled) return
+      const name = err instanceof DOMException ? err.name : ''
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        handlers.onError('Microphone permission was denied. Allow mic access or type below.')
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        handlers.onError('No microphone was found on this device.')
+      } else {
+        handlers.onError('Couldn’t start microphone input right now.')
+      }
+    }
   }
-  rec.onend = () => handlers.onDone(text)
-  rec.start()
-  return () => rec.stop()
+
+  void start()
+
+  return {
+    stop: () => {
+      if (stopped || cancelled) return
+      stopped = true
+      if (recorder && recorder.state !== 'inactive') {
+        try {
+          recorder.stop()
+        } catch {
+          cleanup()
+        }
+      } else {
+        cancelled = true
+        cleanup()
+      }
+    },
+    cancel: () => {
+      if (cancelled) return
+      cancelled = true
+      stopped = true
+      if (recorder && recorder.state !== 'inactive') {
+        try {
+          recorder.stop()
+        } catch {
+          cleanup()
+        }
+      } else {
+        cleanup()
+      }
+    },
+  }
 }
 
-/** Read an answer aloud. Returns a function that stops speaking. */
-export function speak(text: string, onEnd?: () => void): () => void {
-  if (!canSpeak()) { onEnd?.(); return () => {} }
-  const u = new SpeechSynthesisUtterance(text)
-  u.lang = 'en-US'
-  u.rate = 1
-  u.onend = () => onEnd?.()
-  window.speechSynthesis.cancel()
-  window.speechSynthesis.speak(u)
-  return () => { window.speechSynthesis.cancel(); onEnd?.() }
+function toSpeechText(text: string): string {
+  return text
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function speakWithBrowser(
+  text: string,
+  handlers?: {
+    onStart?: () => void
+    onEnd?: () => void
+  },
+): () => void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    handlers?.onEnd?.()
+    return () => {}
+  }
+  const synth = window.speechSynthesis
+  synth.cancel()
+  const utt = new SpeechSynthesisUtterance(text)
+  utt.rate = 1.0
+  utt.pitch = 1.02
+  let finished = false
+  const finish = () => {
+    if (finished) return
+    finished = true
+    handlers?.onEnd?.()
+  }
+  utt.onstart = () => handlers?.onStart?.()
+  utt.onend = finish
+  utt.onerror = finish
+  handlers?.onStart?.()
+  synth.speak(utt)
+  return () => {
+    finished = true
+    synth.cancel()
+  }
+}
+
+/**
+ * Speak Five's response using ElevenLabs TTS (with Web Audio amplitude metering)
+ * and silently fall back to browser speechSynthesis if unavailable.
+ */
+export function speakFive(
+  text: string,
+  handlers?: {
+    onStart?: () => void
+    onEnd?: () => void
+    onEnergy?: (level: number) => void
+  },
+): () => void {
+  const clean = toSpeechText(text)
+  if (!clean) {
+    handlers?.onEnd?.()
+    return () => {}
+  }
+
+  if (!ELEVEN_KEY) {
+    return speakWithBrowser(clean, handlers)
+  }
+
+  let stopped = false
+  let finished = false
+  let raf = 0
+  let objectUrl: string | null = null
+  let audio: HTMLAudioElement | null = null
+  let audioCtx: AudioContext | null = null
+  let fallbackStop: () => void = () => {}
+  const abort = new AbortController()
+
+  const finish = () => {
+    if (finished) return
+    finished = true
+    handlers?.onEnergy?.(0)
+    handlers?.onEnd?.()
+  }
+
+  const cleanupMedia = () => {
+    cancelAnimationFrame(raf)
+    raf = 0
+    if (audio) {
+      audio.onended = null
+      audio.onerror = null
+      audio.pause()
+      audio = null
+    }
+    if (audioCtx) {
+      void audioCtx.close().catch(() => {})
+      audioCtx = null
+    }
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl)
+      objectUrl = null
+    }
+  }
+
+  const startPlayback = async () => {
+    try {
+      const endpoint = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(ELEVEN_VOICE_ID)}?output_format=mp3_44100_128`
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': ELEVEN_KEY,
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+        },
+        body: JSON.stringify({
+          text: clean,
+          model_id: ELEVEN_MODEL_ID,
+          voice_settings: {
+            stability: 0.45,
+            similarity_boost: 0.78,
+          },
+        }),
+        signal: abort.signal,
+      })
+
+      if (!res.ok) {
+        throw new Error(`Speech ${res.status}`)
+      }
+
+      const blob = await res.blob()
+      if (stopped) return
+
+      objectUrl = URL.createObjectURL(blob)
+      const el = new Audio(objectUrl)
+      audio = el
+
+      // Attach optional live energy metering without blocking playback
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        if (AudioCtx) {
+          const ctx = new AudioCtx()
+          audioCtx = ctx
+          const src = ctx.createMediaElementSource(el)
+          const analyser = ctx.createAnalyser()
+          analyser.fftSize = 256
+          src.connect(analyser)
+          analyser.connect(ctx.destination)
+          void ctx.resume().catch(() => {})
+
+          const bins = new Uint8Array(analyser.frequencyBinCount)
+          const meter = () => {
+            if (stopped || finished) return
+            analyser.getByteFrequencyData(bins)
+            let sum = 0
+            const count = Math.min(bins.length, 32)
+            for (let i = 0; i < count; i++) sum += bins[i]
+            handlers?.onEnergy?.(Math.min(1, sum / (count * 135)))
+            raf = requestAnimationFrame(meter)
+          }
+          raf = requestAnimationFrame(meter)
+        }
+      } catch {
+        /* fallback animation keyframes in Five.tsx handle energy === 0 gracefully */
+      }
+
+      el.onended = () => {
+        cleanupMedia()
+        finish()
+      }
+      el.onerror = () => {
+        cleanupMedia()
+        if (!stopped) {
+          fallbackStop = speakWithBrowser(clean, handlers)
+        }
+      }
+
+      handlers?.onStart?.()
+      await el.play()
+    } catch (err) {
+      cleanupMedia()
+      if (stopped || (err as Error).name === 'AbortError') return
+      fallbackStop = speakWithBrowser(clean, handlers)
+    }
+  }
+
+  void startPlayback()
+
+  return () => {
+    stopped = true
+    finished = true
+    abort.abort()
+    fallbackStop()
+    cleanupMedia()
+    handlers?.onEnergy?.(0)
+  }
 }
