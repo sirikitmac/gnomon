@@ -1,5 +1,13 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ToggleEvent as ReactToggleEvent,
+} from 'react'
 import {
   askFive,
   askFiveAudio,
@@ -12,6 +20,18 @@ import {
 } from '../lib/five'
 import Five, { type FiveMode } from './Five'
 
+export type AskFivePresentation = 'modal' | 'window'
+
+type WindowRect = { left: number; top: number; width: number; height: number }
+type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+type WindowGesture = {
+  kind: 'drag' | ResizeEdge
+  pointerId: number
+  startX: number
+  startY: number
+  startRect: WindowRect
+}
+
 const STARTERS = [
   'Which landing site gets the most sunlight?',
   'What does the Slip Test show?',
@@ -21,6 +41,114 @@ const STARTERS = [
 const EQUALIZER_WEIGHTS = [0.5, 0.9, 1, 0.85, 0.5]
 const NOOP_AUDIO_SEND = async () => {}
 
+const WINDOW_MARGIN = 8
+const WINDOW_MIN_W = 320
+const WINDOW_MIN_H = 380
+const WINDOW_DEFAULT_W = 410
+const WINDOW_DEFAULT_H = 560
+const KEYBOARD_STEP = 24
+const KEYBOARD_FAST_STEP = 64
+
+const RESIZE_EDGES: ReadonlyArray<{ edge: ResizeEdge; label: string; className: string }> = [
+  { edge: 'n', label: 'Top edge', className: 'inset-x-4 top-0 h-2 cursor-ns-resize' },
+  { edge: 's', label: 'Bottom edge', className: 'left-4 right-6 bottom-0 h-2 cursor-ns-resize' },
+  { edge: 'w', label: 'Left edge', className: 'inset-y-4 left-0 w-2 cursor-ew-resize' },
+  { edge: 'e', label: 'Right edge', className: 'top-4 bottom-6 right-0 w-2 cursor-ew-resize' },
+  { edge: 'nw', label: 'Top-left corner', className: 'top-0 left-0 h-3.5 w-3.5 cursor-nwse-resize' },
+  { edge: 'ne', label: 'Top-right corner', className: 'top-0 right-0 h-3 w-3 cursor-nesw-resize' },
+  { edge: 'sw', label: 'Bottom-left corner', className: 'bottom-0 left-0 h-3.5 w-3.5 cursor-nesw-resize' },
+]
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(Math.max(n, lo), hi)
+}
+
+function getViewport(): { w: number; h: number } {
+  if (typeof window === 'undefined') return { w: 1280, h: 800 }
+  return { w: window.innerWidth, h: window.innerHeight }
+}
+
+function clampWindowRect(rect: WindowRect, vw: number, vh: number): WindowRect {
+  const safeVw = Math.max(vw, 240)
+  const safeVh = Math.max(vh, 280)
+  const maxW = Math.max(220, safeVw - WINDOW_MARGIN * 2)
+  const maxH = Math.max(260, safeVh - WINDOW_MARGIN * 2)
+  const minW = Math.min(WINDOW_MIN_W, maxW)
+  const minH = Math.min(WINDOW_MIN_H, maxH)
+  const width = Math.round(clamp(rect.width, minW, maxW))
+  const height = Math.round(clamp(rect.height, minH, maxH))
+  const maxLeft = Math.max(WINDOW_MARGIN, safeVw - width - WINDOW_MARGIN)
+  const maxTop = Math.max(WINDOW_MARGIN, safeVh - height - WINDOW_MARGIN)
+  const left = Math.round(clamp(rect.left, WINDOW_MARGIN, maxLeft))
+  const top = Math.round(clamp(rect.top, WINDOW_MARGIN, maxTop))
+  return { left, top, width, height }
+}
+
+function defaultWindowRect(vw: number, vh: number): WindowRect {
+  return clampWindowRect(
+    {
+      left: vw - WINDOW_DEFAULT_W - 20,
+      top: vh - WINDOW_DEFAULT_H - 20,
+      width: WINDOW_DEFAULT_W,
+      height: WINDOW_DEFAULT_H,
+    },
+    vw,
+    vh,
+  )
+}
+
+function resizeWindowRect(
+  start: WindowRect,
+  edge: ResizeEdge,
+  dx: number,
+  dy: number,
+  vw: number,
+  vh: number,
+): WindowRect {
+  const safeVw = Math.max(vw, 240)
+  const safeVh = Math.max(vh, 280)
+  const minW = Math.min(WINDOW_MIN_W, Math.max(220, safeVw - WINDOW_MARGIN * 2))
+  const minH = Math.min(WINDOW_MIN_H, Math.max(260, safeVh - WINDOW_MARGIN * 2))
+
+  let { left, top, width, height } = start
+
+  if (edge.includes('e')) {
+    const maxEastW = Math.max(minW, safeVw - start.left - WINDOW_MARGIN)
+    width = clamp(start.width + dx, minW, maxEastW)
+  } else if (edge.includes('w')) {
+    const maxWestW = Math.max(minW, start.left + start.width - WINDOW_MARGIN)
+    width = clamp(start.width - dx, minW, maxWestW)
+    left = start.left + start.width - width
+  }
+
+  if (edge.includes('s')) {
+    const maxSouthH = Math.max(minH, safeVh - start.top - WINDOW_MARGIN)
+    height = clamp(start.height + dy, minH, maxSouthH)
+  } else if (edge.includes('n')) {
+    const maxNorthH = Math.max(minH, start.top + start.height - WINDOW_MARGIN)
+    height = clamp(start.height - dy, minH, maxNorthH)
+    top = start.top + start.height - height
+  }
+
+  return clampWindowRect({ left, top, width, height }, safeVw, safeVh)
+}
+
+function arrowDelta(e: ReactKeyboardEvent<HTMLElement>): { dx: number; dy: number } | null {
+  const step = e.shiftKey ? KEYBOARD_FAST_STEP : KEYBOARD_STEP
+  switch (e.key) {
+    case 'ArrowLeft':
+      return { dx: -step, dy: 0 }
+    case 'ArrowRight':
+      return { dx: step, dy: 0 }
+    case 'ArrowUp':
+      return { dx: 0, dy: -step }
+    case 'ArrowDown':
+      return { dx: 0, dy: step }
+    default:
+      return null
+  }
+}
+
 function formatSeconds(s: number): string {
   const m = Math.floor(s / 60)
   const rem = s % 60
@@ -28,17 +156,20 @@ function formatSeconds(s: number): string {
 }
 
 /**
- * Floating voice + text dialog for Five.
- * Controls live strictly on the bottom-right side of the chatbar, matching Gemini chat UX.
+ * Voice + text dialog for Five.
+ * Renders as a centered modal on the landing page, or a draggable/resizable floating window in the dashboard.
  */
 export default function AskFive({
   open,
   onClose,
+  mode = 'modal',
 }: {
   open: boolean
   onClose: () => void
+  mode?: AskFivePresentation
 }) {
   const reduce = useReducedMotion()
+  const isWindow = mode === 'window'
   const [turns, setTurns] = useState<FiveTurn[]>([])
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
@@ -49,6 +180,10 @@ export default function AskFive({
   const [audioEnergy, setAudioEnergy] = useState(0)
   const [voiceOut, setVoiceOut] = useState(true)
   const [note, setNote] = useState<string | null>(null)
+  const [viewport, setViewport] = useState(getViewport)
+  const [customRect, setCustomRect] = useState<WindowRect | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const [announcement, setAnnouncement] = useState('')
 
   const dialogRef = useRef<HTMLDialogElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -59,10 +194,15 @@ export default function AskFive({
   const interactionIdRef = useRef<string | undefined>(undefined)
   const requestSeqRef = useRef(0)
   const listenDurationRef = useRef(0)
+  const gestureRef = useRef<WindowGesture | null>(null)
 
   const openRef = useRef(open)
   const voiceOutRef = useRef(voiceOut)
   const busyRef = useRef(busy)
+
+  const currentRect = customRect
+    ? clampWindowRect(customRect, viewport.w, viewport.h)
+    : defaultWindowRect(viewport.w, viewport.h)
 
   useEffect(() => {
     openRef.current = open
@@ -106,6 +246,8 @@ export default function AskFive({
 
   const closeSession = useCallback(() => {
     requestSeqRef.current += 1
+    gestureRef.current = null
+    setDragging(false)
     cancelVoiceInput()
     stopSpeech()
     abortRef.current?.abort()
@@ -116,17 +258,45 @@ export default function AskFive({
     onClose()
   }, [cancelVoiceInput, onClose, stopSpeech])
 
-  // Synchronize native <dialog>.showModal() / .close() with `open`.
+  useEffect(() => {
+    if (!isWindow) return
+    const onResize = () => setViewport(getViewport())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [isWindow])
+
+  // Synchronize native <dialog> (modal or non-modal manual popover window) with `open`.
   useEffect(() => {
     const dlg = dialogRef.current
     if (!dlg) return
+
+    if (isWindow) {
+      const supportsPopover =
+        typeof HTMLElement !== 'undefined' && Object.hasOwn(HTMLElement.prototype, 'popover')
+      if (open) {
+        if (supportsPopover) {
+          if (dlg.isConnected && !dlg.matches(':popover-open')) dlg.showPopover()
+        } else if (!dlg.open) {
+          dlg.show()
+        }
+        const t = window.setTimeout(() => inputRef.current?.focus(), 40)
+        return () => window.clearTimeout(t)
+      }
+      if (supportsPopover) {
+        if (dlg.matches(':popover-open')) dlg.hidePopover()
+      } else if (dlg.open) {
+        dlg.close()
+      }
+      return
+    }
+
     if (open) {
       if (!dlg.open) dlg.showModal()
       const t = window.setTimeout(() => inputRef.current?.focus(), 40)
       return () => window.clearTimeout(t)
     }
     if (dlg.open) dlg.close()
-  }, [open])
+  }, [isWindow, open])
 
   // Clean up hardware mic/audio/requests if closed externally or unmounted.
   useEffect(() => {
@@ -309,8 +479,9 @@ export default function AskFive({
     if (!next) stopSpeech()
   }
 
-  // Light-dismiss fallback when `closedby="any"` is unsupported (e.g. Safari).
+  // Light-dismiss fallback when `closedby="any"` is unsupported in modal mode (e.g. Safari).
   const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    if (isWindow) return
     if ('closedBy' in HTMLDialogElement.prototype) return
     const dlg = dialogRef.current
     if (!dlg || e.target !== dlg) return
@@ -324,9 +495,91 @@ export default function AskFive({
     if (!inside) closeSession()
   }
 
+  const startWindowGesture = (kind: 'drag' | ResizeEdge, e: ReactPointerEvent<HTMLElement>) => {
+    if (!isWindow) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    gestureRef.current = {
+      kind,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startRect: currentRect,
+    }
+    setDragging(kind === 'drag')
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const moveWindowGesture = (e: ReactPointerEvent<HTMLElement>) => {
+    const g = gestureRef.current
+    if (!g || g.pointerId !== e.pointerId) return
+    const dx = e.clientX - g.startX
+    const dy = e.clientY - g.startY
+    const next =
+      g.kind === 'drag'
+        ? clampWindowRect(
+            { ...g.startRect, left: g.startRect.left + dx, top: g.startRect.top + dy },
+            viewport.w,
+            viewport.h,
+          )
+        : resizeWindowRect(g.startRect, g.kind, dx, dy, viewport.w, viewport.h)
+    setCustomRect(next)
+  }
+
+  const endWindowGesture = (e: ReactPointerEvent<HTMLElement>, release = false) => {
+    const g = gestureRef.current
+    if (!g || g.pointerId !== e.pointerId) return
+    if (release && e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {
+        // Ignore if capture already ended.
+      }
+    }
+    gestureRef.current = null
+    setDragging(false)
+  }
+
+  const handleDragKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (!isWindow) return
+    const delta = arrowDelta(e)
+    if (!delta) return
+    e.preventDefault()
+    const next = clampWindowRect(
+      { ...currentRect, left: currentRect.left + delta.dx, top: currentRect.top + delta.dy },
+      viewport.w,
+      viewport.h,
+    )
+    setCustomRect(next)
+    setAnnouncement(`Five window moved to ${next.left}, ${next.top}.`)
+  }
+
+  const handleResizeKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (!isWindow) return
+    const delta = arrowDelta(e)
+    if (!delta) return
+    e.preventDefault()
+    const next = resizeWindowRect(currentRect, 'se', delta.dx, delta.dy, viewport.w, viewport.h)
+    setCustomRect(next)
+    setAnnouncement(`Five window resized to ${next.width} by ${next.height}.`)
+  }
+
+  const handleWindowKeyDown = (e: ReactKeyboardEvent<HTMLDialogElement>) => {
+    if (isWindow && e.key === 'Escape' && !e.defaultPrevented && openRef.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      closeSession()
+    }
+  }
+
+  const handleWindowToggle = (e: ReactToggleEvent<HTMLDialogElement>) => {
+    if (!isWindow || e.target !== dialogRef.current) return
+    const state = (e.nativeEvent as ToggleEvent | undefined)?.newState
+    if (state === 'closed' && openRef.current) closeSession()
+  }
+
   const responding = busy || preparingSpeech || speaking
 
-  const mode: FiveMode = listening
+  const avatarMode: FiveMode = listening
     ? 'listen'
     : busy || preparingSpeech
       ? 'think'
@@ -344,50 +597,112 @@ export default function AskFive({
           ? 'Speaking…'
           : 'Ask about the Moon, sites, or Gnomon'
 
+  const statusDotClass =
+    listening || speaking
+      ? 'bg-[var(--sun)] shadow-[0_0_0_4px_rgb(210_80_42/0.18)]'
+      : busy || preparingSpeech
+        ? 'bg-[var(--ink)]'
+        : 'bg-[var(--ink-2)]/40'
+
+  const headerTitle = (
+    <>
+      <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full transition-colors duration-200 ${statusDotClass}`} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <h2 id="ask-five-title" className="brand text-[21px] leading-none tracking-[-0.02em]">
+            Five
+          </h2>
+          <span className="text-[12px] font-semibold tracking-[-0.01em] text-[var(--ink-2)]">
+            Gnomon Guide
+          </span>
+        </div>
+        <p className="mt-0.5 truncate text-[12.5px] font-medium text-[var(--ink-2)]">
+          {statusText}
+        </p>
+      </div>
+    </>
+  )
+
   return (
     <dialog
       ref={dialogRef}
-      closedby="any"
+      popover={isWindow ? 'manual' : undefined}
+      closedby={isWindow ? undefined : 'any'}
       aria-labelledby="ask-five-title"
       data-lenis-prevent
       onClick={handleDialogClick}
+      onKeyDown={handleWindowKeyDown}
+      onToggle={handleWindowToggle}
       onClose={() => {
-        if (openRef.current) closeSession()
+        if (!isWindow && openRef.current) closeSession()
       }}
-      className="lnd-five-dialog w-[min(520px,calc(100vw-20px))] max-h-[min(720px,calc(100svh-24px))]"
+      style={
+        isWindow
+          ? {
+              left: `${currentRect.left}px`,
+              top: `${currentRect.top}px`,
+              width: `${currentRect.width}px`,
+              height: `${currentRect.height}px`,
+            }
+          : undefined
+      }
+      className={
+        isWindow
+          ? 'five-dialog is-window'
+          : 'five-dialog is-modal w-[min(520px,calc(100vw-20px))] max-h-[min(720px,calc(100svh-24px))]'
+      }
     >
-      <div className="flex max-h-[min(720px,calc(100svh-24px))] w-full flex-col overflow-hidden rounded-[28px] bg-[var(--card)] text-[var(--ink)] shadow-[0_0_0_1px_var(--line),0_32px_90px_-28px_rgb(0_0_0/0.6)]">
-        {/* Clean modal header (close button only) */}
-        <header className="flex items-center gap-3 border-b border-[var(--line)] px-5 py-3.5">
-          <span
-            aria-hidden
-            className={`h-2.5 w-2.5 shrink-0 rounded-full transition-colors duration-200 ${
-              listening || speaking
-                ? 'bg-[var(--sun)] shadow-[0_0_0_4px_rgb(210_80_42/0.18)]'
-                : busy || preparingSpeech
-                  ? 'bg-[var(--ink)]'
-                  : 'bg-[var(--ink-2)]/40'
-            }`}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <h2 id="ask-five-title" className="brand text-[21px] leading-none tracking-[-0.02em]">
-                Five
-              </h2>
-              <span className="text-[12px] font-semibold tracking-[-0.01em] text-[var(--ink-2)]">
-                Gnomon Guide
-              </span>
+      <div
+        className={`relative flex w-full flex-col overflow-hidden rounded-[28px] bg-[var(--card)] text-[var(--ink)] shadow-[0_0_0_1px_var(--line),0_32px_90px_-28px_rgb(0_0_0/0.6)] ${
+          isWindow ? 'h-full' : 'max-h-[min(720px,calc(100svh-24px))]'
+        }`}
+      >
+        {isWindow && (
+          <span className="sr-only" aria-live="polite">
+            {announcement}
+          </span>
+        )}
+
+        {/* Header: draggable + keyboard-movable bar in floating window mode */}
+        <header className="flex items-center gap-2 border-b border-[var(--line)] px-4 py-3 sm:px-5 sm:py-3.5">
+          {isWindow ? (
+            <div
+              onPointerDown={(e) => startWindowGesture('drag', e)}
+              onPointerMove={moveWindowGesture}
+              onPointerUp={(e) => endWindowGesture(e, true)}
+              onPointerCancel={(e) => endWindowGesture(e, true)}
+              onLostPointerCapture={(e) => endWindowGesture(e)}
+              className={`five-drag-handle flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-0.5 pr-1 ${
+                dragging ? 'is-dragging' : ''
+              }`}
+            >
+              <button
+                type="button"
+                onKeyDown={handleDragKeyDown}
+                aria-label="Move Five window. Use arrow keys to move."
+                title="Drag or use arrow keys to move window"
+                className="grid h-7 w-6 shrink-0 place-items-center rounded-md text-[var(--ink-2)] transition-colors duration-150 hover:bg-[var(--card-2)] hover:text-[var(--ink)]"
+              >
+                <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden>
+                  <circle cx="2.5" cy="2.5" r="1.2" />
+                  <circle cx="7.5" cy="2.5" r="1.2" />
+                  <circle cx="2.5" cy="7" r="1.2" />
+                  <circle cx="7.5" cy="7" r="1.2" />
+                  <circle cx="2.5" cy="11.5" r="1.2" />
+                  <circle cx="7.5" cy="11.5" r="1.2" />
+                </svg>
+              </button>
+              {headerTitle}
             </div>
-            <p className="mt-0.5 truncate text-[12.5px] font-medium text-[var(--ink-2)]">
-              {statusText}
-            </p>
-          </div>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center gap-3">{headerTitle}</div>
+          )}
 
           <button
             type="button"
             onClick={closeSession}
             aria-label="Close"
-            className="grid h-9 w-9 place-items-center rounded-full text-[var(--ink-2)] transition-colors duration-150 hover:bg-[var(--card-2)] hover:text-[var(--ink)]"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[var(--ink-2)] transition-colors duration-150 hover:bg-[var(--card-2)] hover:text-[var(--ink)]"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
               <path d="M4 4l8 8M12 4l-8 8" />
@@ -396,13 +711,17 @@ export default function AskFive({
         </header>
 
         {/* Clean animated Five stage (no top buttons) */}
-        <div className="relative flex flex-col items-center justify-center overflow-hidden border-b border-[var(--line)] bg-[var(--sand)] px-5 py-5">
+        <div
+          className={`relative flex shrink-0 flex-col items-center justify-center overflow-hidden border-b border-[var(--line)] bg-[var(--sand)] px-5 ${
+            isWindow ? 'py-3.5' : 'py-5'
+          }`}
+        >
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0"
             style={{
               background:
-                mode === 'speak' || mode === 'listen'
+                avatarMode === 'speak' || avatarMode === 'listen'
                   ? 'radial-gradient(circle at 50% 50%, rgb(210 80 42 / 0.14), transparent 64%)'
                   : 'radial-gradient(circle at 50% 50%, rgb(210 80 42 / 0.05), transparent 60%)',
             }}
@@ -414,8 +733,8 @@ export default function AskFive({
                 aria-hidden
                 className="pointer-events-none absolute rounded-full border border-[var(--sun)]/35"
                 animate={{
-                  width: 118 + audioEnergy * 54,
-                  height: 118 + audioEnergy * 54,
+                  width: (isWindow ? 100 : 118) + audioEnergy * 54,
+                  height: (isWindow ? 100 : 118) + audioEnergy * 54,
                   opacity: 0.25 + audioEnergy * 0.55,
                 }}
                 transition={{ duration: 0.12, ease: 'easeOut' }}
@@ -424,16 +743,22 @@ export default function AskFive({
             <Five
               key={open ? 'open' : 'closed'}
               draw={open}
-              mode={mode}
+              mode={avatarMode}
               energy={audioEnergy}
-              size={104}
+              size={isWindow ? 88 : 104}
               title="Five"
             />
           </div>
         </div>
 
         {/* Scrollable chat transcript */}
-        <div ref={listRef} className="min-h-[180px] flex-1 space-y-3 overflow-y-auto px-5 py-4" aria-live="polite">
+        <div
+          ref={listRef}
+          className={`flex-1 space-y-3 overflow-y-auto px-5 py-4 ${
+            isWindow ? 'min-h-0' : 'min-h-[180px]'
+          }`}
+          aria-live="polite"
+        >
           {!turns.length && (
             <div className="space-y-3">
               <p className="max-w-[90%] rounded-[18px] rounded-tl-[6px] bg-[var(--card-2)] px-4 py-3 text-[14.5px] font-medium leading-snug">
@@ -497,7 +822,9 @@ export default function AskFive({
             }
             void sendText(draft)
           }}
-          className="flex items-center gap-2 border-t border-[var(--line)] p-3"
+          className={`flex items-center gap-2 border-t border-[var(--line)] ${
+            isWindow ? 'py-3 pr-4 pb-3.5 pl-3' : 'p-3'
+          }`}
         >
           {listening ? (
             <div className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-[var(--card-2)] px-4">
@@ -624,6 +951,39 @@ export default function AskFive({
           </div>
         </form>
       </div>
+
+      {isWindow && (
+        <>
+          {RESIZE_EDGES.map((item) => (
+            <div
+              key={item.edge}
+              aria-hidden
+              onPointerDown={(e) => startWindowGesture(item.edge, e)}
+              onPointerMove={moveWindowGesture}
+              onPointerUp={(e) => endWindowGesture(e, true)}
+              onPointerCancel={(e) => endWindowGesture(e, true)}
+              onLostPointerCapture={(e) => endWindowGesture(e)}
+              className={`five-resize-handle absolute z-20 ${item.className}`}
+            />
+          ))}
+          <button
+            type="button"
+            onKeyDown={handleResizeKeyDown}
+            onPointerDown={(e) => startWindowGesture('se', e)}
+            onPointerMove={moveWindowGesture}
+            onPointerUp={(e) => endWindowGesture(e, true)}
+            onPointerCancel={(e) => endWindowGesture(e, true)}
+            onLostPointerCapture={(e) => endWindowGesture(e)}
+            aria-label="Resize Five window. Use arrow keys to resize."
+            title="Drag or use arrow keys to resize window"
+            className="five-resize-handle absolute right-0 bottom-0 z-20 flex h-5 w-5 cursor-nwse-resize items-end justify-end rounded-br-[28px] pr-2 pb-2 text-[var(--ink-2)]/65 transition-colors duration-150 hover:text-[var(--ink)]"
+          >
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden>
+              <path d="M8 2.5L2.5 8M8 6L6 8" />
+            </svg>
+          </button>
+        </>
+      )}
     </dialog>
   )
 }

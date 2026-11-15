@@ -1,8 +1,10 @@
+import { useId } from 'react'
 import { motion } from 'framer-motion'
 import { VIEWS, type View } from '../lib/views'
 
 /** Page switcher in the app bar: a segmented control. */
 export default function ViewTabs({ value, onChange, className = '' }: { value: View; onChange: (v: View) => void; className?: string }) {
+  const pillId = useId()
   return (
     <nav aria-label="Pages" className={className}>
       <div className="flex gap-0.5 rounded-full bg-surface-2 p-[2px]" role="tablist">
@@ -20,8 +22,8 @@ export default function ViewTabs({ value, onChange, className = '' }: { value: V
             >
               {active && (
                 <motion.span
-                  layoutId="view-tab"
-                  className="absolute inset-0 rounded-full bg-surface shadow-control"
+                  layoutId={`view-tab-${pillId}`}
+                  className="absolute inset-0 rounded-full border border-line bg-surface shadow-control"
                   transition={{ type: 'spring', duration: 0.3, bounce: 0.08 }}
                 />
               )}

@@ -352,17 +352,17 @@ export default function Dashboard({ onNavigateHome }: { onNavigateHome?: () => v
           <button
             ref={askButton}
             type="button"
-            onClick={() => setAskOpen(true)}
+            onClick={() => (askOpen ? closeAsk() : setAskOpen(true))}
             aria-haspopup="dialog"
             aria-expanded={askOpen}
-            title="Ask Five a question"
+            title={askOpen ? 'Close Five' : 'Ask Five a question'}
             className="flex h-9 items-center gap-1.5 rounded-full px-2 text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.96] sm:px-2.5"
           >
             <Five size={18} title="Five" />
             <span className="hidden md:inline">Ask Five</span>
             <span className="sr-only md:hidden">Ask Five</span>
           </button>
-          <AskFive open={askOpen} onClose={closeAsk} />
+          <AskFive open={askOpen} onClose={closeAsk} mode="window" />
           <button
             id="learn-button"
             onClick={() => {
