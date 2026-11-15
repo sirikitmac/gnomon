@@ -41,18 +41,42 @@ const getGeminiClient = () => {
   return geminiClient
 }
 
-function extractInteractionText(interaction: { output_text?: string; outputs?: unknown[] }): string {
+function extractTextParts(items: unknown[]): string[] {
+  return items
+    .map((item) =>
+      typeof item === 'object' && item !== null && 'text' in item && typeof item.text === 'string'
+        ? item.text
+        : '',
+    )
+    .filter(Boolean)
+}
+
+function extractInteractionText(interaction: {
+  output_text?: string | null
+  outputs?: unknown[]
+  steps?: unknown[]
+}): string {
   if (typeof interaction.output_text === 'string' && interaction.output_text.trim()) {
     return interaction.output_text.trim()
   }
+  if (Array.isArray(interaction.steps)) {
+    const parts: string[] = []
+    for (const step of interaction.steps) {
+      if (
+        typeof step === 'object' &&
+        step !== null &&
+        'type' in step &&
+        step.type === 'model_output' &&
+        'content' in step &&
+        Array.isArray(step.content)
+      ) {
+        parts.push(...extractTextParts(step.content))
+      }
+    }
+    if (parts.length) return parts.join('\n').trim()
+  }
   if (Array.isArray(interaction.outputs)) {
-    const parts = interaction.outputs
-      .map((item) =>
-        typeof item === 'object' && item !== null && 'text' in item && typeof item.text === 'string'
-          ? item.text
-          : '',
-      )
-      .filter(Boolean)
+    const parts = extractTextParts(interaction.outputs)
     if (parts.length) return parts.join('\n').trim()
   }
   return ''
@@ -105,7 +129,7 @@ async function runModelInteraction(
           : {}),
         generation_config: {
           thinking_level: GEMINI_MODEL.includes('3.8') ? 'low' : 'minimal',
-          max_output_tokens: 350,
+          max_output_tokens: 450,
         },
       },
       options?.signal ? { signal: options.signal } : undefined,
@@ -174,6 +198,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 function normalizeAudioMime(rawMime: string): string {
   const base = rawMime.split(';')[0]?.trim().toLowerCase() || 'audio/webm'
   if (base === 'audio/wave' || base === 'audio/x-wav') return 'audio/wav'
+  if (base === 'audio/mp4' || base === 'audio/x-m4a') return 'audio/m4a'
   return base
 }
 
@@ -187,6 +212,8 @@ export async function askFiveAudio(
   }
 
   const base64 = await blobToBase64(audioBlob)
+  if (!base64) throw new Error('Empty audio recording')
+
   const mimeType = normalizeAudioMime(audioBlob.type)
   const contextPrefix = formatHistoryContext(history)
 
@@ -196,8 +223,13 @@ export async function askFiveAudio(
         ? `${contextPrefix}\n\nListen to my spoken question in the audio and answer directly as Five.`
         : 'Listen to my spoken question in the audio and answer directly as Five.'
     return [
-      { type: 'audio', data: base64, mime_type: mimeType },
-      { type: 'text', text: prompt },
+      {
+        type: 'user_input',
+        content: [
+          { type: 'audio', data: base64, mime_type: mimeType },
+          { type: 'text', text: prompt },
+        ],
+      },
     ]
   }, options)
 }
@@ -355,10 +387,12 @@ export function startVoiceRecorder(handlers: {
           recorder.stop()
         } catch {
           cleanup()
+          handlers.onError('Hold briefly while speaking, then tap send.')
         }
       } else {
         cancelled = true
         cleanup()
+        handlers.onError('Hold briefly while speaking, then tap send.')
       }
     },
     cancel: () => {

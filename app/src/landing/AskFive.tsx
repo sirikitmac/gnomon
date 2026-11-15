@@ -246,6 +246,7 @@ export default function AskFive({
         speakReply(res.answer)
       } catch (err) {
         if ((err as Error).name === 'AbortError' || seq !== requestSeqRef.current) return
+        console.warn('Voice request failed:', err)
         setNote('Five couldn’t process that voice message. Try again or type below.')
       } finally {
         if (seq === requestSeqRef.current) setBusy(false)
@@ -272,6 +273,10 @@ export default function AskFive({
     setListening(true)
 
     recorderRef.current = startVoiceRecorder({
+      onReady: () => {
+        listenDurationRef.current = 0
+        setListenSeconds(0)
+      },
       onEnergy: (level) => setAudioEnergy(level),
       onStop: (blob) => {
         const secs = listenDurationRef.current
